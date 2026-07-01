@@ -1,4 +1,4 @@
-# Kcal
+# just-ate
 
 A chat-style calorie and macro tracker. Type what you ate the way you'd text a friend — `2 eggs`, `1 cucumber`, `30 gr whey protein, 150gr blueberries` — and the day's kcal/protein/carbs/fat bars update instantly. Hit **Complete the day** and it rolls into your history.
 
@@ -9,7 +9,7 @@ No account, no ads, no backend. Everything lives in your browser's localStorage.
 ## Run locally
 
 ```bash
-cd kcal
+cd just-ate
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
@@ -24,16 +24,16 @@ node parser.test.js
 
 ## Deploy to GitHub Pages
 
-1. On github.com (logged in as **i-trenchevski**), create a new **empty** repo named `kcal` — no README, no .gitignore, nothing.
+1. On github.com (logged in as **i-trenchevski**), create a new **empty** repo named `just-ate` — no README, no .gitignore, nothing.
 2. From this folder:
 
 ```bash
-git remote add origin https://github.com/i-trenchevski/kcal.git
+git remote add origin https://github.com/i-trenchevski/just-ate.git
 git push -u origin main
 ```
 
 3. On the repo page: **Settings → Pages → Source: Deploy from a branch → Branch: main, / (root) → Save**.
-4. After a minute the app is live at **https://i-trenchevski.github.io/kcal/**.
+4. After a minute the app is live at **https://i-trenchevski.github.io/just-ate/**.
 
 ## Add to Home Screen
 
@@ -76,11 +76,11 @@ so commits made inside this folder are authored correctly regardless of your glo
 `foods.js` is a plain array. Each entry:
 
 ```js
-{ name: 'lentils', per100: { kcal: 116, p: 9, c: 20, f: 0.4 },
-  aliases: ['lentil', 'lekja'], piece: null }
+{ name: 'lentils', per100: { kcal: 352, p: 24.6, c: 63, f: 1.1 },
+  aliases: ['lentil', 'leka'], piece: null }
 ```
 
-- `per100` — values per 100 g (cooked, where it matters).
+- `per100` — values per 100 g of the **raw** food.
 - `piece` — grams for one countable unit (`1 apple` → 180 g). Leave `null` if it only makes sense by weight.
 - `aliases` — extra names, including Dutch/Macedonian ones.
 
@@ -88,11 +88,11 @@ Foods you add through the in-app resolver ("Add it myself" / Open Food Facts pic
 
 ## Releasing a new version
 
-Bump `SW_VERSION` in `sw.js` (e.g. `kcal-v2`) so installed home-screen apps drop the old cache and pick up your changes on next launch.
+Bump `SW_VERSION` in `sw.js` (e.g. `just-ate-v2`) so installed home-screen apps drop the old cache and pick up your changes on next launch.
 
 ## Data & attribution
 
-- All personal data stays in localStorage under the key `kcal-v1`. **Settings → Export JSON** to back up, Import to restore. Clearing site data wipes it.
+- All personal data stays in localStorage under the key `just-ate-v1`. **Settings → Export JSON** to back up, Import to restore. Clearing site data wipes it.
 - Fallback nutrition search uses the Open Food Facts database, © Open Food Facts contributors, available under the [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
 
 ## Known limitations (by design, for now)
@@ -100,6 +100,6 @@ Bump `SW_VERSION` in `sw.js` (e.g. `kcal-v2`) so installed home-screen apps drop
 - Natural-language logging has a real accuracy ceiling (~±15–25%). Every bubble shows the grams it assumed so you can correct course.
 - `kcal` targets and the 4/4/9 macro math aren't force-reconciled; if you hand-enter targets they're taken as-is.
 - Changing targets doesn't rewrite history — past days keep the numbers they were logged under.
-- "rice", "pasta" etc. mean **cooked** weight. Log `dry rice` explicitly if you weigh dry.
+- Weights are **raw / as-purchased**: `60g rice` means 60 g dry rice, `150g chicken` means raw chicken. If you weighed it after cooking, say so — `150g cooked rice`, `cooked chicken` etc. have their own entries. (Boiled potato ≈ raw potato, so no variant needed there.)
 - Unknown counted items ("2 things") assume 100 g each and say so in the bubble.
 - One device = one dataset. Sync would need a backend; deliberately out of scope.

@@ -1,9 +1,9 @@
-/* Kcal — app logic.
+/* just-ate — app logic.
    Views: setup (first run) · main (plate + chat) · history · settings.
    State lives in localStorage; logged entries bake their numbers in, so
    editing foods.js later never rewrites history. */
 
-const LS_KEY = 'kcal-v1';
+const LS_KEY = 'just-ate-v1';
 const app = document.getElementById('app');
 
 // ---------------------------------------------------------------- state
@@ -482,7 +482,7 @@ function exportJSON() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `kcal-export-${dayKey()}.json`;
+  a.download = `just-ate-export-${dayKey()}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -496,7 +496,7 @@ window.importJSON = function (ev) {
       if (!s || typeof s !== 'object' || !('days' in s)) throw new Error('shape');
       state = { targets: null, custom: {}, days: {}, ...s };
       save(); location.hash = ''; render();
-    } catch (e) { alert('That file doesn\u2019t look like a Kcal export.'); }
+    } catch (e) { alert('That file doesn\u2019t look like a just-ate export.'); }
   };
   reader.readAsText(file);
 };

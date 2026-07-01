@@ -2,6 +2,10 @@
 // Values are per 100 g (or 100 ml for liquids). `piece` = grams assumed for
 // one counted item ("2 eggs" -> 2 x 55 g). Everything here is a reasonable
 // generic average — edit freely, precision theatre is not the goal.
+//
+// CONVENTION: weights are RAW / as-purchased. "60g rice" = 60 g dry rice,
+// "150g chicken" = raw weight. Foods that change a lot in the pan have an
+// explicit "cooked ..." entry — type that if you weighed after cooking.
 // Entries logged in the app bake these numbers in at log time, so editing
 // this file never rewrites your history.
 
@@ -9,11 +13,12 @@ const FOODS = [
   // --- protein ---
   { name: 'egg', aliases: ['eggs', 'boiled egg', 'fried egg', 'ei', 'eieren', 'jajce'], per100: { kcal: 143, p: 12.6, c: 0.7, f: 9.5 }, piece: 55 },
   { name: 'egg white', aliases: ['egg whites'], per100: { kcal: 52, p: 10.9, c: 0.7, f: 0.2 }, piece: 33 },
-  { name: 'chicken breast', aliases: ['chicken', 'kipfilet', 'pileshko'], per100: { kcal: 165, p: 31, c: 0, f: 3.6 } },
-  { name: 'chicken thigh', aliases: ['chicken thighs'], per100: { kcal: 179, p: 24.8, c: 0, f: 8.2 } },
-  { name: 'minced beef', aliases: ['ground beef', 'beef mince', 'gehakt', 'melo meso'], per100: { kcal: 241, p: 21, c: 0, f: 17 } },
-  { name: 'beef steak', aliases: ['steak', 'beef'], per100: { kcal: 217, p: 26, c: 0, f: 12 } },
-  { name: 'pork chop', aliases: ['pork'], per100: { kcal: 231, p: 25, c: 0, f: 14 } },
+  { name: 'chicken breast', aliases: ['chicken', 'kipfilet', 'pileshko', 'raw chicken'], per100: { kcal: 120, p: 22.5, c: 0, f: 2.6 } },
+  { name: 'cooked chicken breast', aliases: ['cooked chicken', 'grilled chicken', 'roast chicken'], per100: { kcal: 165, p: 31, c: 0, f: 3.6 } },
+  { name: 'chicken thigh', aliases: ['chicken thighs'], per100: { kcal: 121, p: 19.7, c: 0, f: 4.7 } },
+  { name: 'minced beef', aliases: ['ground beef', 'beef mince', 'gehakt', 'melo meso'], per100: { kcal: 230, p: 18.5, c: 0, f: 17 } },
+  { name: 'beef steak', aliases: ['steak', 'beef'], per100: { kcal: 176, p: 21, c: 0, f: 10 } },
+  { name: 'pork chop', aliases: ['pork'], per100: { kcal: 200, p: 20, c: 0, f: 13.5 } },
   { name: 'prosciutto', aliases: ['prshuta', 'prsuta', 'dry-cured ham', 'parma ham'], per100: { kcal: 250, p: 25, c: 0.3, f: 16 } },
   { name: 'ham', aliases: ['cooked ham', 'shunka'], per100: { kcal: 145, p: 21, c: 1.5, f: 6 } },
   { name: 'bacon', aliases: ['spek', 'slanina'], per100: { kcal: 541, p: 37, c: 1.4, f: 42 } },
@@ -40,10 +45,10 @@ const FOODS = [
   { name: 'kajmak', aliases: [], per100: { kcal: 620, p: 4, c: 2, f: 65 } },
 
   // --- grains, bread, potatoes ---
-  { name: 'rice', aliases: ['cooked rice', 'white rice', 'oriz'], per100: { kcal: 130, p: 2.7, c: 28, f: 0.3 } },
-  { name: 'dry rice', aliases: ['uncooked rice'], per100: { kcal: 365, p: 7, c: 80, f: 0.7 } },
-  { name: 'pasta', aliases: ['cooked pasta', 'spaghetti', 'makaroni'], per100: { kcal: 158, p: 5.8, c: 31, f: 0.9 } },
-  { name: 'dry pasta', aliases: ['uncooked pasta'], per100: { kcal: 371, p: 13, c: 75, f: 1.5 } },
+  { name: 'rice', aliases: ['white rice', 'oriz', 'dry rice', 'uncooked rice', 'raw rice'], per100: { kcal: 365, p: 7, c: 80, f: 0.7 } },
+  { name: 'cooked rice', aliases: ['boiled rice', 'gekookte rijst'], per100: { kcal: 130, p: 2.7, c: 28, f: 0.3 } },
+  { name: 'pasta', aliases: ['spaghetti', 'makaroni', 'dry pasta', 'uncooked pasta'], per100: { kcal: 371, p: 13, c: 75, f: 1.5 } },
+  { name: 'cooked pasta', aliases: ['cooked spaghetti', 'boiled pasta'], per100: { kcal: 158, p: 5.8, c: 31, f: 0.9 } },
   { name: 'oats', aliases: ['oatmeal', 'havermout', 'ovesni snegulki'], per100: { kcal: 379, p: 13, c: 68, f: 6.5 } },
   { name: 'bread', aliases: ['slice of bread', 'toast', 'white bread', 'brood', 'leb'], per100: { kcal: 265, p: 9, c: 49, f: 3.2 }, piece: 35 },
   { name: 'whole wheat bread', aliases: ['brown bread', 'volkoren'], per100: { kcal: 247, p: 13, c: 41, f: 3.4 }, piece: 36 },
@@ -53,13 +58,18 @@ const FOODS = [
   { name: 'potato', aliases: ['potatoes', 'aardappel', 'kompir'], per100: { kcal: 77, p: 2, c: 17, f: 0.1 }, piece: 170 },
   { name: 'sweet potato', aliases: [], per100: { kcal: 86, p: 1.6, c: 20, f: 0.1 }, piece: 180 },
   { name: 'fries', aliases: ['french fries', 'friet', 'pomfrit'], per100: { kcal: 312, p: 3.4, c: 41, f: 15 } },
-  { name: 'quinoa', aliases: ['cooked quinoa'], per100: { kcal: 120, p: 4.4, c: 21, f: 1.9 } },
-  { name: 'couscous', aliases: ['cooked couscous'], per100: { kcal: 112, p: 3.8, c: 23, f: 0.2 } },
+  { name: 'quinoa', aliases: ['dry quinoa'], per100: { kcal: 368, p: 14.1, c: 64, f: 6.1 } },
+  { name: 'cooked quinoa', aliases: [], per100: { kcal: 120, p: 4.4, c: 21, f: 1.9 } },
+  { name: 'couscous', aliases: ['dry couscous'], per100: { kcal: 376, p: 12.8, c: 72, f: 0.6 } },
+  { name: 'cooked couscous', aliases: [], per100: { kcal: 112, p: 3.8, c: 23, f: 0.2 } },
 
   // --- legumes ---
-  { name: 'lentils', aliases: ['cooked lentils', 'leka'], per100: { kcal: 116, p: 9, c: 20, f: 0.4 } },
-  { name: 'chickpeas', aliases: ['cooked chickpeas'], per100: { kcal: 164, p: 8.9, c: 27, f: 2.6 } },
-  { name: 'beans', aliases: ['cooked beans', 'white beans', 'grav', 'gravce'], per100: { kcal: 127, p: 8.7, c: 23, f: 0.5 } },
+  { name: 'lentils', aliases: ['leka', 'dry lentils'], per100: { kcal: 352, p: 24.6, c: 63, f: 1.1 } },
+  { name: 'cooked lentils', aliases: ['boiled lentils'], per100: { kcal: 116, p: 9, c: 20, f: 0.4 } },
+  { name: 'chickpeas', aliases: ['dry chickpeas'], per100: { kcal: 378, p: 20.5, c: 63, f: 6 } },
+  { name: 'cooked chickpeas', aliases: ['canned chickpeas'], per100: { kcal: 164, p: 8.9, c: 27, f: 2.6 } },
+  { name: 'beans', aliases: ['white beans', 'dry beans'], per100: { kcal: 333, p: 23.6, c: 60, f: 0.9 } },
+  { name: 'cooked beans', aliases: ['grav', 'gravce', 'canned beans'], per100: { kcal: 127, p: 8.7, c: 23, f: 0.5 } },
   { name: 'hummus', aliases: [], per100: { kcal: 166, p: 8, c: 14, f: 10 } },
 
   // --- fruit ---

@@ -37,7 +37,10 @@ check('"zlatiborac prshuta" -> prosciutto', i.ok && i.foodName === 'prosciutto' 
 
 // --- formats ---
 i = one('rice 150g');
-check('trailing qty "rice 150g"', i.ok && i.foodName === 'rice' && i.grams === 150 && i.kcal === 195, JSON.stringify(i));
+check('trailing qty "rice 150g" = RAW rice', i.ok && i.foodName === 'rice' && i.grams === 150 && i.kcal === 548, JSON.stringify(i));
+
+i = one('150g cooked rice');
+check('"cooked rice" hits the cooked entry', i.ok && i.foodName === 'cooked rice' && i.kcal === 195, JSON.stringify(i));
 
 i = one('1,5 banana');
 check('comma decimal "1,5 banana"', i.ok && i.grams === 177, JSON.stringify(i));

@@ -1,20 +1,20 @@
-/* Kcal — green-tinted charcoal, sage accent, serif numbers.
+/* just-ate — warm charcoal, apricot accent, serif numbers.
    One screen, one thumb. */
 
 :root {
-  --bg: #101413;
-  --surface: #171d1b;
-  --surface-2: #1e2624;
-  --line: #263130;
-  --text: #e7ede8;
-  --muted: #8ea59a;
-  --faint: #5f736b;
-  --accent: #7fd8a4;
-  --accent-deep: #2e7d5b;
-  --accent-dim: rgba(127, 216, 164, 0.14);
-  --amber: #f2b25c;
-  --red: #ef7b6d;
-  --bubble: #21302a;
+  --bg: #16120e;
+  --surface: #1e1813;
+  --surface-2: #292015;
+  --line: #382c1e;
+  --text: #f1e9dd;
+  --muted: #a8977f;
+  --faint: #7b6c55;
+  --accent: #f3a462;
+  --accent-deep: #b06a2e;
+  --accent-dim: rgba(243, 164, 98, 0.14);
+  --amber: #e07840;
+  --red: #e5484d;
+  --bubble: #2d2318;
   --radius: 14px;
   --serif: 'Fraunces', Georgia, serif;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -37,7 +37,7 @@ input, select, textarea { font: inherit; }
 /* ---------- header: today's plate ---------- */
 .plate {
   position: sticky; top: 0; z-index: 10;
-  background: linear-gradient(var(--bg) 82%, rgba(16, 20, 19, 0));
+  background: linear-gradient(var(--bg) 82%, rgba(22, 18, 14, 0));
   padding: calc(10px + env(safe-area-inset-top)) 16px 14px;
 }
 .plate-card {
@@ -87,7 +87,7 @@ input, select, textarea { font: inherit; }
 
 .bubble {
   background: var(--bubble);
-  border: 1px solid rgba(127, 216, 164, 0.10);
+  border: 1px solid rgba(243, 164, 98, 0.10);
   border-radius: 16px 16px 4px 16px;
   padding: 9px 12px 8px;
 }
@@ -136,7 +136,7 @@ input, select, textarea { font: inherit; }
 /* ---------- composer ---------- */
 .composer {
   position: sticky; bottom: 0; z-index: 10;
-  background: linear-gradient(rgba(16,20,19,0), var(--bg) 30%);
+  background: linear-gradient(rgba(22,18,14,0), var(--bg) 30%);
   padding: 14px 16px calc(12px + env(safe-area-inset-bottom));
 }
 .composer-row { display: flex; gap: 8px; }
@@ -150,7 +150,7 @@ input, select, textarea { font: inherit; }
 .composer input::placeholder { color: var(--faint); }
 .send {
   width: 44px; height: 44px; border-radius: 50%; flex: none;
-  background: var(--accent); color: #0c1410;
+  background: var(--accent); color: #1a1006;
   display: grid; place-items: center;
 }
 .send:disabled { background: var(--surface-2); color: var(--faint); }
@@ -194,7 +194,7 @@ input, select, textarea { font: inherit; }
   border: 1px solid var(--line); color: var(--text); background: var(--surface);
 }
 .btn:hover { border-color: var(--accent-deep); }
-.btn.primary { background: var(--accent); color: #0c1410; border-color: var(--accent); font-weight: 600; }
+.btn.primary { background: var(--accent); color: #1a1006; border-color: var(--accent); font-weight: 600; }
 .btn.danger { color: var(--red); }
 .btn-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
 .hint { font-size: 12px; color: var(--faint); margin-top: 8px; }

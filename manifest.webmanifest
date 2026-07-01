@@ -1,12 +1,12 @@
 {
-  "name": "Kcal",
-  "short_name": "Kcal",
+  "name": "just-ate",
+  "short_name": "just-ate",
   "description": "Chat-style calorie and macro tracker",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#101413",
-  "theme_color": "#101413",
+  "background_color": "#16120e",
+  "theme_color": "#16120e",
   "icons": [
     {
       "src": "icons/icon-192.png",
