@@ -1,5 +1,5 @@
 // Bump this on every release. Old caches are deleted on activate.
-const SW_VERSION = 'just-ate-v1';
+const SW_VERSION = 'just-ate-v3';
 
 const CORE_ASSETS = [
   './',
@@ -8,6 +8,8 @@ const CORE_ASSETS = [
   './app.js',
   './parser.js',
   './foods.js',
+  './config.js',
+  './sync.js',
   './manifest.webmanifest',
 ];
 

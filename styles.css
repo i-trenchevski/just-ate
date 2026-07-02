@@ -46,9 +46,22 @@ input, select, textarea { font: inherit; }
   border-radius: var(--radius);
   padding: 14px 16px 15px;
 }
-.plate-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.plate-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .plate-date { color: var(--muted); font-size: 13px; letter-spacing: 0.02em; }
-.plate-nav { display: flex; gap: 4px; }
+.plate-nav { display: flex; align-items: center; gap: 4px; }
+
+.acct-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 4px 6px 4px 11px;
+  border: 1px solid var(--line); border-radius: 99px;
+  background: var(--surface-2); color: var(--text);
+  font-size: 13px; line-height: 1; margin-right: 4px;
+}
+.acct-chip:hover { border-color: var(--accent-deep); }
+.acct-chip img, .acct-chip svg { width: 20px; height: 20px; border-radius: 50%; display: block; }
+.acct-chip svg { color: var(--muted); padding: 1px; }
+
+.page-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .icon-btn {
   color: var(--muted); padding: 6px; border-radius: 8px; line-height: 0;
 }

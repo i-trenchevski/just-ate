@@ -17,7 +17,23 @@ function load() {
 }
 function save() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
 
-const parser = createParser(FOODS, () => state.custom);
+// Stamp an item as edited-now and tell sync about it (no-op when sync is off).
+function touch(kind, key) {
+  const u = Date.now();
+  if (kind === 'day' && state.days[key]) state.days[key].u = u;
+  else if (kind === 'custom' && state.custom[key]) state.custom[key].u = u;
+  else if (kind === 'targets' && state.targets) state.targets.u = u;
+  if (window.Sync) Sync.queuePush(kind, key);
+}
+
+// Custom foods minus tombstones (deleted-on-another-device markers).
+function liveCustom() {
+  const out = {};
+  for (const [k, f] of Object.entries(state.custom)) if (!f.deleted) out[k] = f;
+  return out;
+}
+
+const parser = createParser(FOODS, liveCustom);
 
 // ---------------------------------------------------------------- dates
 function dayKey(d = new Date()) {
@@ -31,14 +47,17 @@ function niceDate(key) {
   return key === dayKey() ? `Today · ${label}` : label;
 }
 
-// Any past day left open closes itself; empty stubs disappear.
+// Any past day left open closes itself. (Empty days are kept but marked
+// completed — deleting them would let a synced copy resurrect them. History
+// only shows days that have entries.)
 function rollover() {
   const today = dayKey();
   let changed = false;
   for (const k of Object.keys(state.days)) {
     const d = state.days[k];
     if (k < today && !d.completed) {
-      if (d.entries.length) { d.completed = true; } else { delete state.days[k]; }
+      d.completed = true;
+      touch('day', k);
       changed = true;
     }
   }
@@ -88,7 +107,21 @@ const ICONS = {
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>',
   send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
 };
+
+// The account chip lives at the top right of every view.
+function acctChip() {
+  if (!window.Sync || Sync.status === 'off') return '';
+  const u = Sync.user;
+  if (!u) return `<button class="acct-chip" data-action="google-login">Log in ${ICONS.user}</button>`;
+  const meta = u.user_metadata || {};
+  const first = ((meta.full_name || meta.name || u.email || '').split('@')[0].trim().split(/\s+/)[0]) || 'Account';
+  const av = meta.avatar_url
+    ? `<img src="${esc(meta.avatar_url)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`
+    : ICONS.user;
+  return `<button class="acct-chip" data-action="nav" data-to="settings" title="${esc(u.email || '')}">${esc(first)} ${av}</button>`;
+}
 
 // ---------------------------------------------------------------- main view
 let resolverUI = {}; // transient per-item UI state: `${entryId}:${idx}` -> {mode, results}
@@ -125,6 +158,7 @@ function renderMain() {
         <div class="plate-row">
           <span class="plate-date">${niceDate(dayKey())}</span>
           <span class="plate-nav">
+            ${acctChip()}
             <button class="icon-btn" data-action="nav" data-to="history" aria-label="History">${ICONS.history}</button>
             <button class="icon-btn" data-action="nav" data-to="settings" aria-label="Settings">${ICONS.gear}</button>
           </span>
@@ -210,6 +244,13 @@ function resolverHTML(entryId, idx, item) {
 async function offSearch(key, name) {
   resolverUI[key] = { mode: 'searching' };
   render();
+
+  // Our own database first: has anyone (any device, ever) resolved this food?
+  let cached = null;
+  if (window.Sync) {
+    cached = await Sync.cacheGet(parser.normName(name)).catch(() => null);
+  }
+
   try {
     const url = 'https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=6'
       + '&fields=product_name,brands,nutriments&search_terms=' + encodeURIComponent(name);
@@ -227,9 +268,14 @@ async function offSearch(key, name) {
           f: Math.round((p.nutriments.fat_100g || 0) * 10) / 10,
         },
       }));
+    if (cached && cached.per100) {
+      results.unshift({ label: `${cached.name || name} — saved earlier`, per100: cached.per100, cached: true });
+    }
     resolverUI[key] = { mode: 'results', results };
   } catch (e) {
-    resolverUI[key] = { mode: 'error' };
+    resolverUI[key] = (cached && cached.per100)
+      ? { mode: 'results', results: [{ label: `${cached.name || name} — saved earlier`, per100: cached.per100, cached: true }] }
+      : { mode: 'error' };
   }
   render();
 }
@@ -242,7 +288,9 @@ function resolveWith(key, per100) {
   if (!entry) return;
   const item = entry.items[idx];
   const food = { name: item.name, per100 };
-  state.custom[parser.normName(item.name)] = food;   // remembered forever
+  const norm = parser.normName(item.name);
+  state.custom[norm] = food;   // remembered forever
+  touch('custom', norm);
   parser.computeItem(item, food);
   delete resolverUI[key];
   save();
@@ -262,16 +310,17 @@ document.addEventListener('click', ev => {
     const e = d.entries.find(x => x.id === btn.dataset.id);
     if (e && confirm(`Delete “${e.text}”?`)) {
       d.entries = d.entries.filter(x => x.id !== btn.dataset.id);
+      touch('day', dayKey());
       save(); render();
     }
     return;
   }
 
   if (a === 'complete') {
-    if (confirm('Close this day and move it to history?')) { today().completed = true; save(); render(); }
+    if (confirm('Close this day and move it to history?')) { today().completed = true; touch('day', dayKey()); save(); render(); }
     return;
   }
-  if (a === 'reopen') { today().completed = false; save(); render(); return; }
+  if (a === 'reopen') { today().completed = false; touch('day', dayKey()); save(); render(); return; }
 
   if (a === 'off-search') {
     const key = btn.dataset.key;
@@ -283,7 +332,13 @@ document.addEventListener('click', ev => {
   if (a === 'off-pick') {
     const key = btn.dataset.key;
     const r = (resolverUI[key].results || [])[Number(btn.dataset.i)];
-    if (r) resolveWith(key, r.per100);
+    if (r) {
+      const item = itemByKey(key);
+      if (item && window.Sync && !r.cached) {
+        Sync.cachePut(parser.normName(item.name), { name: item.name, per100: r.per100 });
+      }
+      resolveWith(key, r.per100);
+    }
     return;
   }
   if (a === 'manual-save') {
@@ -296,12 +351,20 @@ document.addEventListener('click', ev => {
   }
 
   if (a === 'del-custom') {
-    delete state.custom[btn.dataset.key]; save(); render(); return;
+    state.custom[btn.dataset.key] = { deleted: true };
+    touch('custom', btn.dataset.key);
+    save(); render(); return;
   }
+  if (a === 'google-login') { window.Sync && Sync.signIn(); return; }
+  if (a === 'logout') { window.Sync && Sync.signOut(); return; }
+  if (a === 'sync-now') { window.Sync && Sync.syncNow(); return; }
+
   if (a === 'export') { exportJSON(); return; }
   if (a === 'import') { document.getElementById('importfile').click(); return; }
   if (a === 'reset') {
-    if (confirm('Wipe everything — targets, custom foods, all history?')) {
+    const cloud = window.Sync && Sync.user
+      ? '\n\n(You are signed in — the cloud copy stays and will come back on next sync. Sign out first for a device-only wipe.)' : '';
+    if (confirm('Wipe everything — targets, custom foods, all history?' + cloud)) {
       localStorage.removeItem(LS_KEY); state = load(); location.hash = ''; render();
     }
     return;
@@ -329,6 +392,7 @@ function onLog(ev) {
   const items = parser.parseEntry(text);
   if (!items.length) return;
   today().entries.push({ id: Math.random().toString(36).slice(2, 9), text, items, t: Date.now() });
+  touch('day', dayKey());
   save();
   render();
   const fresh = document.getElementById('loginput');
@@ -341,7 +405,10 @@ function renderTargetsForm(firstRun) {
   const pr = (state.targets && state.targets.profile) || {};
   app.innerHTML = `
     <div class="page">
-      ${firstRun ? '' : `<button class="back" data-action="nav" data-to="">← Back to today</button>`}
+      <div class="page-top">
+        ${firstRun ? '<span></span>' : `<button class="back" data-action="nav" data-to="">← Back to today</button>`}
+        ${acctChip()}
+      </div>
       <h1>${firstRun ? 'Set your day' : 'Settings'}</h1>
       <p class="lede">${firstRun ? 'Targets first — then it\u2019s just typing what you eat.' : 'Targets, your foods, your data.'}</p>
 
@@ -382,7 +449,7 @@ function renderTargetsForm(firstRun) {
 }
 
 function settingsExtras() {
-  const foods = Object.entries(state.custom);
+  const foods = Object.entries(state.custom).filter(([, f]) => !f.deleted);
   return `
     <h2>Your foods (${foods.length})</h2>
     ${foods.length ? foods.map(([k, f]) => `
@@ -391,14 +458,39 @@ function settingsExtras() {
         <button class="del" data-action="del-custom" data-key="${esc(k)}">✕</button>
       </div>`).join('') : `<p class="hint">Foods you teach it will show up here.</p>`}
 
+    <h2>Account & sync</h2>
+    ${syncSection()}
+
     <h2>Data</h2>
     <div class="btn-row">
       <button class="btn" data-action="export">Export JSON</button>
       <button class="btn" data-action="import">Import JSON</button>
       <button class="btn danger" data-action="reset">Reset everything</button>
     </div>
-    <p class="hint">Everything lives in this browser only. Export now and then — clearing browser data clears your history too.</p>
+    <p class="hint">Your log lives in this browser${window.Sync && Sync.user ? ', backed up to your account' : ' only — export now and then, clearing browser data clears your history too'}.</p>
     <input type="file" id="importfile" accept="application/json" style="display:none" onchange="importJSON(event)">`;
+}
+
+function syncSection() {
+  const envNote = (typeof CONFIG !== 'undefined' && CONFIG.env === 'dev')
+    ? `<p class="hint" style="color:var(--amber)">Test environment — this data lives in the dev project, fully separate from the live app.</p>` : '';
+  if (!window.Sync || Sync.status === 'off') {
+    return envNote + `<p class="hint">Sync isn't set up in this build — the app is local-only. To enable login + multi-device sync, follow SETUP.md in the repo and fill in config.js.</p>`;
+  }
+  if (!Sync.user) {
+    return envNote + `
+      <p class="hint">Sign in to back up your log and keep phone and laptop in step. No password — Google handles it.</p>
+      <div class="btn-row"><button class="btn primary" data-action="google-login">Continue with Google</button></div>`;
+  }
+  const when = Sync.lastSync ? new Date(Sync.lastSync).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
+  const label = { syncing: 'syncing…', ok: `synced · ${when}`, error: 'sync error — will retry' }[Sync.status] || Sync.status;
+  return envNote + `
+    <div class="custom-food">
+      <span>${esc(Sync.user.email || 'Signed in')} <span style="color:var(--faint)">· ${label}</span></span>
+      <button class="del" data-action="logout" title="Sign out">✕</button>
+    </div>
+    <div class="btn-row"><button class="btn" data-action="sync-now">Sync now</button></div>
+    <p class="hint">Everything syncs automatically — on each change, and whenever you come back to the app.</p>`;
 }
 
 function estimate() {
@@ -432,6 +524,7 @@ function saveTargets() {
       sex: sexBtn ? sexBtn.dataset.v : 'f',
     },
   };
+  touch('targets');
   save();
   location.hash = '';
   render();
@@ -470,7 +563,10 @@ function renderHistory() {
 
   app.innerHTML = `
     <div class="page">
-      <button class="back" data-action="nav" data-to="">← Back to today</button>
+      <div class="page-top">
+        <button class="back" data-action="nav" data-to="">← Back to today</button>
+        ${acctChip()}
+      </div>
       <h1>History</h1>
       <p class="lede">Only completed days count. A missing day means you didn't log, not that you didn't eat.</p>
       ${summary}${rows}
@@ -495,6 +591,13 @@ window.importJSON = function (ev) {
       const s = JSON.parse(reader.result);
       if (!s || typeof s !== 'object' || !('days' in s)) throw new Error('shape');
       state = { targets: null, custom: {}, days: {}, ...s };
+      // An import is an explicit "this is the truth" — stamp it newest so it
+      // wins the merge on every device.
+      const u = Date.now();
+      if (state.targets) state.targets.u = u;
+      for (const k of Object.keys(state.days)) { state.days[k].u = u; window.Sync && Sync.queuePush('day', k); }
+      for (const k of Object.keys(state.custom)) { state.custom[k].u = u; window.Sync && Sync.queuePush('custom', k); }
+      if (state.targets && window.Sync) Sync.queuePush('targets');
       save(); location.hash = ''; render();
     } catch (e) { alert('That file doesn\u2019t look like a just-ate export.'); }
   };
@@ -507,3 +610,16 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 }
 rollover();
 render();
+
+if (window.Sync && typeof CONFIG !== 'undefined') {
+  let lastAcct = '';
+  Sync.init(CONFIG, {
+    getState: () => state,
+    replaceState: (s) => { state = s; save(); render(); },
+    onChange: () => {
+      const id = (Sync.user && Sync.user.id) || '';
+      if (id !== lastAcct) { lastAcct = id; render(); }       // login/logout: everything updates
+      else if (route() === 'settings') render();              // status pings: only settings shows them
+    },
+  });
+}

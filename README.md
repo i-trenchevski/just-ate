@@ -2,9 +2,9 @@
 
 A chat-style calorie and macro tracker. Type what you ate the way you'd text a friend — `2 eggs`, `1 cucumber`, `30 gr whey protein, 150gr blueberries` — and the day's kcal/protein/carbs/fat bars update instantly. Hit **Complete the day** and it rolls into your history.
 
-No account, no ads, no backend. Everything lives in your browser's localStorage.
+No account needed — everything lives in your browser's localStorage. Optionally, sign in with Google to back up your log and sync it across devices (see `SETUP.md` — one-time Supabase setup, free tier).
 
-**Stack:** vanilla HTML/CSS/JS, zero build step, zero dependencies. Nutrition comes from a built-in table of ~85 staples (`foods.js`), your own custom foods (saved once, remembered forever), and an [Open Food Facts](https://world.openfoodfacts.org/) search fallback for anything unknown.
+**Stack:** vanilla HTML/CSS/JS, zero build step, zero dependencies. Nutrition comes from a built-in table of ~85 staples (`foods.js`), your own custom foods (saved once, remembered forever), and an [Open Food Facts](https://world.openfoodfacts.org/) search fallback for anything unknown. Sync, when enabled, is Supabase (Postgres + Google auth) with an offline-first, newest-edit-wins merge — see `sync.js` and `schema.sql`.
 
 ## Run locally
 
@@ -88,7 +88,7 @@ Foods you add through the in-app resolver ("Add it myself" / Open Food Facts pic
 
 ## Releasing a new version
 
-Bump `SW_VERSION` in `sw.js` (e.g. `just-ate-v2`) so installed home-screen apps drop the old cache and pick up your changes on next launch.
+Bump `SW_VERSION` in `sw.js` (e.g. `just-ate-v3`) so installed home-screen apps drop the old cache and pick up your changes on next launch.
 
 ## Data & attribution
 
@@ -102,4 +102,4 @@ Bump `SW_VERSION` in `sw.js` (e.g. `just-ate-v2`) so installed home-screen apps 
 - Changing targets doesn't rewrite history — past days keep the numbers they were logged under.
 - Weights are **raw / as-purchased**: `60g rice` means 60 g dry rice, `150g chicken` means raw chicken. If you weighed it after cooking, say so — `150g cooked rice`, `cooked chicken` etc. have their own entries. (Boiled potato ≈ raw potato, so no variant needed there.)
 - Unknown counted items ("2 things") assume 100 g each and say so in the bubble.
-- One device = one dataset. Sync would need a backend; deliberately out of scope.
+- Sync is per-item newest-wins: editing the same day on two offline devices at once means the later edit takes that whole day. Fine for one person; real multi-writer merging is deliberately out of scope.
