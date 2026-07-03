@@ -62,3 +62,25 @@ create policy "cache read"  on public.foods_cache
 
 create policy "cache write" on public.foods_cache
   for insert to authenticated with check (true);
+
+-- ---------------------------------------------------------------- account deletion
+-- ALREADY HAVE THE TABLES? Run ONLY this section (from here down) — the
+-- create-table statements above will error on an existing project and roll
+-- the whole script back, so the function would never be created.
+--
+-- Backs the "Delete account" button in Settings (GDPR right to erasure).
+-- security definer lets the function delete the caller's auth.users row —
+-- something the anon/authenticated roles could never do directly — and the
+-- on-delete-cascade FKs above wipe their targets, days and custom_foods
+-- rows with it. foods_cache stays: it is shared and holds nothing personal.
+create or replace function public.delete_account()
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  delete from auth.users where id = auth.uid();
+$$;
+
+revoke execute on function public.delete_account() from public, anon;
+grant execute on function public.delete_account() to authenticated;

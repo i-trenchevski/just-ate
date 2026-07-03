@@ -1,5 +1,5 @@
 // Bump this on every release. Old caches are deleted on activate.
-const SW_VERSION = 'just-ate-v3';
+const SW_VERSION = 'just-ate-v4';
 
 const CORE_ASSETS = [
   './',
@@ -36,8 +36,10 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(SW_VERSION).then((c) => c.put(e.request, copy));
+        if (res.ok) {                      // never let a transient 404/500 overwrite a good copy
+          const copy = res.clone();
+          caches.open(SW_VERSION).then((c) => c.put(e.request, copy));
+        }
         return res;
       })
       .catch(() => caches.match(e.request).then((hit) => hit || caches.match('./index.html')))

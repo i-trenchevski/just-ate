@@ -109,10 +109,32 @@ const Sync = (() => {
 
   async function signOut() {
     if (!client) return;
-    await client.auth.signOut();
+    // scope 'local': only this device — the default ('global') would revoke
+    // every device's refresh token.
+    await client.auth.signOut({ scope: 'local' });
     user = null;
     status = 'signedout';
     notify();
+  }
+
+  // GDPR erasure. The delete_account() RPC (see schema.sql) is security
+  // definer: it deletes the auth.users row, and the on-delete-cascade FKs
+  // take every personal row (targets, days, custom_foods) with it.
+  async function deleteAccount() {
+    if (!client || !user) return { ok: false, error: 'Not signed in.' };
+    const { error } = await client.rpc('delete_account');
+    if (error) {
+      // PGRST202 = the RPC doesn't exist server-side (schema.sql not applied).
+      const msg = error.code === 'PGRST202'
+        ? 'Account deletion isn’t enabled on the server yet. Nothing was deleted.'
+        : error.message;
+      return { ok: false, error: msg };
+    }
+    await client.auth.signOut({ scope: 'local' }).catch(() => {});
+    user = null;
+    status = 'signedout';
+    notify();
+    return { ok: true };
   }
 
   // ------------------------------------------------------------ push
@@ -168,6 +190,10 @@ const Sync = (() => {
       ]);
       chk(t); chk(d); chk(c);
 
+      // Signed out or account deleted while the selects were in flight —
+      // writing the stale snapshot back would resurrect just-erased data.
+      if (!user) { syncing = false; return; }
+
       const remote = { targets: null, days: {}, custom: {} };
       if (t.data) remote.targets = { ...t.data.data, u: Number(t.data.u) || 0 };
       for (const r of d.data || []) {
@@ -212,7 +238,7 @@ const Sync = (() => {
   }
 
   return {
-    init, signIn, signOut, queuePush, syncNow, cacheGet, cachePut, mergeStates,
+    init, signIn, signOut, deleteAccount, queuePush, syncNow, cacheGet, cachePut, mergeStates,
     get user() { return user; },
     get status() { return status; },
     get lastSync() { return lastSync; },

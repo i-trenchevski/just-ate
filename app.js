@@ -114,7 +114,12 @@ const ICONS = {
 function acctChip() {
   if (!window.Sync || Sync.status === 'off') return '';
   const u = Sync.user;
-  if (!u) return `<button class="acct-chip" data-action="google-login">Log in ${ICONS.user}</button>`;
+  if (!u) {
+    // 'signedout' means the SDK is up and signIn() will work; on 'error' with
+    // no user (SDK never loaded) the button would silently do nothing.
+    return Sync.status === 'signedout'
+      ? `<button class="acct-chip" data-action="google-login">Log in ${ICONS.user}</button>` : '';
+  }
   const meta = u.user_metadata || {};
   const first = ((meta.full_name || meta.name || u.email || '').split('@')[0].trim().split(/\s+/)[0]) || 'Account';
   const av = meta.avatar_url
@@ -158,7 +163,7 @@ function renderMain() {
         <div class="plate-row">
           <span class="plate-date">${niceDate(dayKey())}</span>
           <span class="plate-nav">
-            ${acctChip()}
+            <span id="acct-slot">${acctChip()}</span>
             <button class="icon-btn" data-action="nav" data-to="history" aria-label="History">${ICONS.history}</button>
             <button class="icon-btn" data-action="nav" data-to="settings" aria-label="Settings">${ICONS.gear}</button>
           </span>
@@ -358,6 +363,7 @@ document.addEventListener('click', ev => {
   if (a === 'google-login') { window.Sync && Sync.signIn(); return; }
   if (a === 'logout') { window.Sync && Sync.signOut(); return; }
   if (a === 'sync-now') { window.Sync && Sync.syncNow(); return; }
+  if (a === 'delete-account') { deleteAccount(); return; }
 
   if (a === 'export') { exportJSON(); return; }
   if (a === 'import') { document.getElementById('importfile').click(); return; }
@@ -384,6 +390,27 @@ function itemByKey(key) {
   return entry && entry.items[Number(idxS)];
 }
 
+async function deleteAccount() {
+  if (!(window.Sync && Sync.user)) return;
+  const email = Sync.user.email || 'your account';
+  if (!confirm(`Permanently delete ${email} and ALL synced data — every day, food and target, on every device?`)) return;
+  if (prompt('This cannot be undone. Type DELETE to confirm.') !== 'DELETE') return;
+  const btn = document.querySelector('[data-action=delete-account]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  const res = await Sync.deleteAccount();
+  if (!res.ok) {
+    alert('Could not delete the account: ' + res.error);
+    if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
+    return;
+  }
+  localStorage.removeItem(LS_KEY);
+  state = load();
+  resolverUI = {};
+  location.hash = '';
+  render();
+  alert('Your account and all synced data were deleted.');
+}
+
 function onLog(ev) {
   ev.preventDefault();
   const input = document.getElementById('loginput');
@@ -407,7 +434,7 @@ function renderTargetsForm(firstRun) {
     <div class="page">
       <div class="page-top">
         ${firstRun ? '<span></span>' : `<button class="back" data-action="nav" data-to="">← Back to today</button>`}
-        ${acctChip()}
+        <span id="acct-slot">${acctChip()}</span>
       </div>
       <h1>${firstRun ? 'Set your day' : 'Settings'}</h1>
       <p class="lede">${firstRun ? 'Targets first — then it\u2019s just typing what you eat.' : 'Targets, your foods, your data.'}</p>
@@ -450,6 +477,7 @@ function renderTargetsForm(firstRun) {
 
 function settingsExtras() {
   const foods = Object.entries(state.custom).filter(([, f]) => !f.deleted);
+  const signedIn = !!(window.Sync && Sync.user);
   return `
     <h2>Your foods (${foods.length})</h2>
     ${foods.length ? foods.map(([k, f]) => `
@@ -459,15 +487,40 @@ function settingsExtras() {
       </div>`).join('') : `<p class="hint">Foods you teach it will show up here.</p>`}
 
     <h2>Account & sync</h2>
-    ${syncSection()}
+    <div id="sync-section">${syncSection()}</div>
 
     <h2>Data</h2>
     <div class="btn-row">
       <button class="btn" data-action="export">Export JSON</button>
       <button class="btn" data-action="import">Import JSON</button>
-      <button class="btn danger" data-action="reset">Reset everything</button>
     </div>
-    <p class="hint">Your log lives in this browser${window.Sync && Sync.user ? ', backed up to your account' : ' only — export now and then, clearing browser data clears your history too'}.</p>
+    <p class="hint">Your log lives in this browser${signedIn ? ', backed up to your account' : ' only — export now and then, clearing browser data clears your history too'}. Export gives you the full log as a file you can keep or take elsewhere.</p>
+
+    ${signedIn ? `
+    <div class="logout-row">
+      <button class="btn" data-action="logout">Log out</button>
+      <p class="hint">Signs you out on this device only — your data stays in your account and on your other devices.</p>
+    </div>` : ''}
+
+    <div class="danger-zone">
+      <h2>Danger zone</h2>
+      <div class="dz-item">
+        <div>
+          <b>Reset everything</b>
+          <p class="hint">Wipes targets, foods and history from this device.${signedIn ? ' Your synced copy stays and comes back on the next sign-in.' : ''}</p>
+        </div>
+        <button class="btn danger" data-action="reset">Reset</button>
+      </div>
+      <div class="dz-item">
+        <div>
+          <b>Delete account</b>
+          <p class="hint">${signedIn
+            ? 'Permanently deletes your account and every synced day, food and target. Cannot be undone.'
+            : 'Sign in first — there is no account to delete from this device.'}</p>
+        </div>
+        ${signedIn ? `<button class="btn danger solid" data-action="delete-account">Delete</button>` : ''}
+      </div>
+    </div>
     <input type="file" id="importfile" accept="application/json" style="display:none" onchange="importJSON(event)">`;
 }
 
@@ -487,7 +540,6 @@ function syncSection() {
   return envNote + `
     <div class="custom-food">
       <span>${esc(Sync.user.email || 'Signed in')} <span style="color:var(--faint)">· ${label}</span></span>
-      <button class="del" data-action="logout" title="Sign out">✕</button>
     </div>
     <div class="btn-row"><button class="btn" data-action="sync-now">Sync now</button></div>
     <p class="hint">Everything syncs automatically — on each change, and whenever you come back to the app.</p>`;
@@ -565,7 +617,7 @@ function renderHistory() {
     <div class="page">
       <div class="page-top">
         <button class="back" data-action="nav" data-to="">← Back to today</button>
-        ${acctChip()}
+        <span id="acct-slot">${acctChip()}</span>
       </div>
       <h1>History</h1>
       <p class="lede">Only completed days count. A missing day means you didn't log, not that you didn't eat.</p>
@@ -618,8 +670,13 @@ if (window.Sync && typeof CONFIG !== 'undefined') {
     replaceState: (s) => { state = s; save(); render(); },
     onChange: () => {
       const id = (Sync.user && Sync.user.id) || '';
-      if (id !== lastAcct) { lastAcct = id; render(); }       // login/logout: everything updates
-      else if (route() === 'settings') render();              // status pings: only settings shows them
+      if (id !== lastAcct) { lastAcct = id; render(); return; } // login/logout: everything updates
+      const slot = document.getElementById('acct-slot');        // chip appearing / status pings: patch
+      if (slot) slot.innerHTML = acctChip();                    // in place — nobody's typing is disturbed
+      if (route() === 'settings') {
+        const box = document.getElementById('sync-section');
+        if (box) box.innerHTML = syncSection();
+      }
     },
   });
 }
