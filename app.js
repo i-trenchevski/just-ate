@@ -361,7 +361,7 @@ document.addEventListener('click', ev => {
     save(); render(); return;
   }
   if (a === 'google-login') { window.Sync && Sync.signIn(); return; }
-  if (a === 'logout') { window.Sync && Sync.signOut(); return; }
+  if (a === 'logout') { logOut(); return; }
   if (a === 'sync-now') { window.Sync && Sync.syncNow(); return; }
   if (a === 'delete-account') { deleteAccount(); return; }
 
@@ -369,7 +369,7 @@ document.addEventListener('click', ev => {
   if (a === 'import') { document.getElementById('importfile').click(); return; }
   if (a === 'reset') {
     const cloud = window.Sync && Sync.user
-      ? '\n\n(You are signed in — the cloud copy stays and will come back on next sync. Sign out first for a device-only wipe.)' : '';
+      ? '\n\n(You are signed in — the cloud copy stays and will come back on next sync. To clear just this device, use Log out instead.)' : '';
     if (confirm('Wipe everything — targets, custom foods, all history?' + cloud)) {
       localStorage.removeItem(LS_KEY); state = load(); location.hash = ''; render();
     }
@@ -388,6 +388,36 @@ function itemByKey(key) {
   const [entryId, idxS] = key.split(':');
   const entry = today().entries.find(e => e.id === entryId);
   return entry && entry.items[Number(idxS)];
+}
+
+// Logging out also removes the local copy — the next person at this browser
+// starts fresh. A full sync must complete first: the dirty flags don't
+// survive a reload, so only a finished pull-merge can rediscover local rows
+// the server doesn't have yet and push them up before the wipe.
+let loggingOut = false;
+async function logOut() {
+  if (loggingOut || !(window.Sync && Sync.user)) return;
+  loggingOut = true;
+  try {
+    const btn = () => document.querySelector('[data-action=logout]');
+    let b = btn();
+    if (b) { b.disabled = true; b.textContent = 'Syncing…'; }
+    await Sync.syncNow();                      // joins an in-flight sync, or runs one
+    if (Sync.pending) await Sync.syncNow();    // edits that landed mid-sync
+    b = btn();
+    if (b) { b.disabled = false; b.textContent = 'Log out'; }
+    const clean = !Sync.pending && Sync.status === 'ok';
+    const msg = clean
+      ? 'Log out and remove your log from this device? It stays in your account and comes back when you sign in again.'
+      : 'Log out and remove your log from this device?\n\nWARNING: couldn’t confirm everything is backed up (sync failed) — recent changes may be lost. To be safe, cancel and tap “Sync now” once you’re back online.';
+    if (!confirm(msg)) return;
+    await Sync.signOut();
+    localStorage.removeItem(LS_KEY);
+    state = load();
+    resolverUI = {};
+    location.hash = '';
+    render();
+  } finally { loggingOut = false; }
 }
 
 async function deleteAccount() {
@@ -499,7 +529,7 @@ function settingsExtras() {
     ${signedIn ? `
     <div class="logout-row">
       <button class="btn" data-action="logout">Log out</button>
-      <p class="hint">Signs you out on this device only — your data stays in your account and on your other devices.</p>
+      <p class="hint">Signs you out and removes your log from this device — it stays in your account (and on your other devices) and comes back when you sign in again.</p>
     </div>` : ''}
 
     <div class="danger-zone">

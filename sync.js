@@ -16,7 +16,8 @@ const Sync = (() => {
   let hooks = null;          // { getState, replaceState, onChange }
   let status = 'off';        // off | signedout | syncing | ok | error
   let lastSync = 0;
-  let syncing = false;
+  let syncPromise = null;    // in-flight syncNow — callers join it, never race it
+  let authStorageKey = '';   // supabase's own localStorage key, for forced sign-out
   let pushTimer = null;
   const dirty = { targets: false, days: new Set(), custom: new Set() };
 
@@ -74,6 +75,7 @@ const Sync = (() => {
   async function init(cfg, h) {
     hooks = h;
     if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey) { status = 'off'; return; }
+    try { authStorageKey = 'sb-' + new URL(cfg.supabaseUrl).hostname.split('.')[0] + '-auth-token'; } catch (e) { /* best effort */ }
     try { await loadSdk(); } catch (e) { return bail(e); }
 
     client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
@@ -111,9 +113,16 @@ const Sync = (() => {
     if (!client) return;
     // scope 'local': only this device — the default ('global') would revoke
     // every device's refresh token.
-    await client.auth.signOut({ scope: 'local' });
+    const { error } = await client.auth.signOut({ scope: 'local' }).catch((e) => ({ error: e }));
+    if (error && authStorageKey) {
+      // Server unreachable: the SDK keeps the session in localStorage, which
+      // would quietly restore the account on the next page load. The device
+      // must end up signed out regardless — drop the session ourselves.
+      try { localStorage.removeItem(authStorageKey); } catch (e) { /* ignore */ }
+    }
     user = null;
     status = 'signedout';
+    dirty.targets = false; dirty.days.clear(); dirty.custom.clear();
     notify();
   }
 
@@ -150,12 +159,22 @@ const Sync = (() => {
   async function flush() {
     if (!client || !user) return;
     const s = hooks.getState();
+    // Drop flags whose local object no longer exists (a reset wiped it) —
+    // there is nothing to push, and a stuck flag would make `pending` lie.
+    if (dirty.targets && !s.targets) dirty.targets = false;
+    for (const k of [...dirty.days]) if (!s.days[k]) dirty.days.delete(k);
+    for (const k of [...dirty.custom]) if (!s.custom[k]) dirty.custom.delete(k);
     try {
       status = 'syncing'; notify();
+      // After each awaited upsert, un-dirty only what was actually pushed and
+      // hasn't been edited since — an edit landing mid-flight keeps its flag
+      // and goes up with the debounced follow-up flush.
       if (dirty.targets && s.targets) {
+        const pushedU = s.targets.u || 0;
         chk(await client.from('targets')
-          .upsert({ user_id: user.id, data: s.targets, u: s.targets.u || 0 }));
-        dirty.targets = false;
+          .upsert({ user_id: user.id, data: s.targets, u: pushedU }));
+        const cur = hooks.getState().targets;
+        if (!cur || (cur.u || 0) <= pushedU) dirty.targets = false;
       }
       const dayRows = [...dirty.days].filter((k) => s.days[k]).map((k) => ({
         user_id: user.id, day: k,
@@ -164,14 +183,16 @@ const Sync = (() => {
       }));
       if (dayRows.length) {
         chk(await client.from('days').upsert(dayRows));
-        dirty.days.clear();
+        const cur = hooks.getState().days;
+        dayRows.forEach((r) => { if (!cur[r.day] || (cur[r.day].u || 0) <= r.u) dirty.days.delete(r.day); });
       }
       const foodRows = [...dirty.custom].filter((k) => s.custom[k]).map((k) => ({
         user_id: user.id, key: k, food: s.custom[k], u: s.custom[k].u || 0,
       }));
       if (foodRows.length) {
         chk(await client.from('custom_foods').upsert(foodRows));
-        dirty.custom.clear();
+        const cur = hooks.getState().custom;
+        foodRows.forEach((r) => { if (!cur[r.key] || (cur[r.key].u || 0) <= r.u) dirty.custom.delete(r.key); });
       }
       lastSync = Date.now(); status = 'ok';
     } catch (e) { return bail(e); }
@@ -179,9 +200,17 @@ const Sync = (() => {
   }
 
   // ------------------------------------------------------------ pull + merge
-  async function syncNow() {
-    if (!client || !user || syncing) return;
-    syncing = true; status = 'syncing'; notify();
+  // Returns a promise that settles when sync is done. A second call while one
+  // is in flight joins it instead of racing it — awaiting syncNow() always
+  // means "a full pull+merge+push attempt has finished".
+  function syncNow() {
+    if (!client || !user) return Promise.resolve();
+    if (!syncPromise) syncPromise = doSync().finally(() => { syncPromise = null; });
+    return syncPromise;
+  }
+
+  async function doSync() {
+    status = 'syncing'; notify();
     try {
       const [t, d, c] = await Promise.all([
         client.from('targets').select('data,u').eq('user_id', user.id).maybeSingle(),
@@ -192,7 +221,7 @@ const Sync = (() => {
 
       // Signed out or account deleted while the selects were in flight —
       // writing the stale snapshot back would resurrect just-erased data.
-      if (!user) { syncing = false; return; }
+      if (!user) return;
 
       const remote = { targets: null, days: {}, custom: {} };
       if (t.data) remote.targets = { ...t.data.data, u: Number(t.data.u) || 0 };
@@ -216,7 +245,6 @@ const Sync = (() => {
         lastSync = Date.now(); status = 'ok'; notify();
       }
     } catch (e) { bail(e); }
-    syncing = false;
   }
 
   // ------------------------------------------------------------ shared food cache
@@ -242,6 +270,7 @@ const Sync = (() => {
     get user() { return user; },
     get status() { return status; },
     get lastSync() { return lastSync; },
+    get pending() { return !!(dirty.targets || dirty.days.size || dirty.custom.size); },
   };
 })();
 

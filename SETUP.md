@@ -147,8 +147,10 @@ and today's log appears on both.
 - **Newest edit wins, per day.** Edit the same day on two devices while both
   are offline and the later edit takes that day. For one person this is the
   right trade; nothing else is ever touched.
-- **Reset everything** wipes the device, not the account — the cloud copy
-  returns on next sync. Sign out first if you want a true local wipe.
+- **Log out** removes your log from that device (after a final sync push), so
+  the next person at the browser starts fresh — it all returns when you sign
+  in again. **Reset everything** wipes the device, not the account — while
+  signed in, the cloud copy comes back on the next sync.
 - **Deleting a custom food** sticks across devices (tombstones), it won't
   creep back.
 - **foods_cache** is shared and append-only: every Open Food Facts result you
