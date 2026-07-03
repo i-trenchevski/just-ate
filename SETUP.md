@@ -14,7 +14,7 @@ You run **two Supabase projects** (the free tier allows two):
 
 | Environment | Supabase project | Used by | Data |
 |---|---|---|---|
-| **prod** | `just-ate` | https://i-trenchevski.github.io/just-ate/ | your real log |
+| **prod** | `just-ate` | https://just-ate.com | your real log |
 | **dev** | `just-ate-dev` | http://localhost:8000 | throwaway test data |
 
 `config.js` picks the environment **by hostname** — localhost always gets dev,
@@ -64,7 +64,8 @@ Do this **in each project** (dev and prod get identical schemas):
      login like this).
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
    - Application type: **Web application**, name `just-ate web`.
-   - **Authorized JavaScript origins** — add both:
+   - **Authorized JavaScript origins** — add all of:
+     - `https://just-ate.com`
      - `https://i-trenchevski.github.io`
      - `http://localhost:8000`
    - **Authorized redirect URIs** — add the Supabase callback of **both**
@@ -82,8 +83,10 @@ Do this **in each project**, with the same Client ID and secret:
    **Enable**, paste the Client ID and Client secret → Save.
 2. Still under Authentication → **URL Configuration** — this is where the
    environments get their separate front doors:
-   - **`just-ate` (prod):** Site URL `https://i-trenchevski.github.io/just-ate/`
-     and the same URL in Redirect URLs. Do **not** add localhost here.
+   - **`just-ate` (prod):** Site URL `https://just-ate.com/` and the same URL
+     in Redirect URLs (keep `https://i-trenchevski.github.io/just-ate/` in
+     Redirect URLs too while the old address is still in circulation).
+     Do **not** add localhost here.
    - **`just-ate-dev`:** Site URL `http://localhost:8000/` and the same in
      Redirect URLs. Do **not** add the Pages URL here.
 

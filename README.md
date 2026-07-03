@@ -33,7 +33,8 @@ git push -u origin main
 ```
 
 3. On the repo page: **Settings → Pages → Source: Deploy from a branch → Branch: main, / (root) → Save**.
-4. After a minute the app is live at **https://i-trenchevski.github.io/just-ate/**.
+4. After a minute the app is live at **https://just-ate.com** (custom domain
+   set by the repo's `CNAME` file; the `*.github.io` URL redirects there).
 
 ## Add to Home Screen
 
