@@ -84,3 +84,35 @@ $$;
 
 revoke execute on function public.delete_account() from public, anon;
 grant execute on function public.delete_account() to authenticated;
+
+-- ---------------------------------------------------------------- AI usage
+-- ALREADY HAVE THE TABLES? Run ONLY this section (from here down).
+--
+-- Per-user daily counter for AI food lookups. Only the parse-food edge
+-- function touches it (with the service role); RLS is on with no policies,
+-- so browsers can neither read nor forge counts.
+create table public.ai_usage (
+  user_id uuid   not null references auth.users (id) on delete cascade,
+  day     text   not null,             -- 'YYYY-MM-DD' (UTC)
+  count   int    not null default 0,
+  primary key (user_id, day)
+);
+
+alter table public.ai_usage enable row level security;
+
+-- Atomic counter: a plain select-then-upsert would let parallel requests all
+-- read the same count and sail past the cap. Only the edge function (service
+-- role) may call it; delta -1 refunds a failed lookup.
+create or replace function public.bump_ai_usage(uid uuid, d text, delta int default 1)
+returns int
+language sql
+as $$
+  insert into public.ai_usage (user_id, day, count)
+  values (uid, d, greatest(delta, 0))
+  on conflict (user_id, day)
+  do update set count = greatest(public.ai_usage.count + delta, 0)
+  returning count;
+$$;
+
+revoke execute on function public.bump_ai_usage(uuid, text, int) from public, anon, authenticated;
+grant execute on function public.bump_ai_usage(uuid, text, int) to service_role;

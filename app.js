@@ -212,10 +212,35 @@ function resolverHTML(entryId, idx, item) {
   const ui = resolverUI[key] || { mode: 'idle' };
   let body = '';
   if (ui.mode === 'idle') {
+    const ai = window.Sync && Sync.user
+      ? `<button class="chip ai" data-action="ai-lookup" data-key="${key}">✨ Ask AI</button>` : '';
     body = `<div class="resolver-actions">
+      ${ai}
       <button class="chip" data-action="off-search" data-key="${key}">Search Open Food Facts</button>
       <button class="chip" data-action="manual" data-key="${key}">Add it myself</button>
-    </div>`;
+    </div>${ai ? '' : `<div class="item-note" style="margin-top:6px">Sign in to identify foods with AI — any language, any phrasing.</div>`}`;
+  } else if (ui.mode === 'ai-loading') {
+    body = `<span class="status">Asking AI…</span>`;
+  } else if (ui.mode === 'ai-results') {
+    const rows = ui.results.map((r) => `
+      <div class="ai-item">
+        <span class="nm">${esc(r.food_name_en)} <span class="g">→ ${Math.round(r.grams)} g · ${Math.round(r.per100.kcal * r.grams / 100)} kcal</span></span>
+        <span class="kc">${r.per100.kcal} kcal · P ${r.per100.p} C ${r.per100.c} F ${r.per100.f} per 100 g${r.confidence === 'low' ? ' · low confidence — double-check' : ''}</span>
+        ${r.note ? `<span class="kc">${esc(r.note)}</span>` : ''}
+      </div>`).join('');
+    body = `${rows}
+      <div class="resolver-actions" style="margin-top:8px">
+        <button class="chip ai" data-action="ai-accept" data-key="${key}">Use ${ui.results.length > 1 ? 'these' : 'this'}</button>
+        <button class="chip" data-action="off-search" data-key="${key}">Search Open Food Facts</button>
+        <button class="chip" data-action="manual" data-key="${key}">Add it myself</button>
+      </div>`;
+  } else if (ui.mode === 'ai-error') {
+    body = `<span class="status">${esc(ui.message)}</span>
+      <div class="resolver-actions" style="margin-top:8px">
+        <button class="chip" data-action="ai-lookup" data-key="${key}">Retry AI</button>
+        <button class="chip" data-action="off-search" data-key="${key}">Search Open Food Facts</button>
+        <button class="chip" data-action="manual" data-key="${key}">Add it myself</button>
+      </div>`;
   } else if (ui.mode === 'searching') {
     body = `<span class="status">Searching Open Food Facts…</span>`;
   } else if (ui.mode === 'error') {
@@ -244,6 +269,85 @@ function resolverHTML(entryId, idx, item) {
   }
   return `<div class="resolver" data-rkey="${key}">
     <p>New food: <b>${esc(item.name)}</b> — tell me once, I'll remember it.</p>${body}</div>`;
+}
+
+// ------------------------------------------------ AI food lookup
+// The edge function (supabase/functions/parse-food) holds the API key and
+// requires a signed-in user; the browser only ever sends the food text.
+async function aiLookup(key) {
+  const item = itemByKey(key);
+  if (!item) return;
+  resolverUI[key] = { mode: 'ai-loading' };
+  render();
+  let ui;
+  try {
+    const token = window.Sync ? await Sync.getToken() : null;
+    if (!token) throw { message: 'Sign in (top right) to use AI lookups.' };
+    const res = await fetch(`${CONFIG.supabaseUrl}/functions/v1/parse-food`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: CONFIG.supabaseAnonKey,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ text: item.raw || item.name }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw { message: data.error || `AI lookup failed (${res.status}).` };
+    ui = (data.items && data.items.length)
+      ? { mode: 'ai-results', results: data.items }
+      : { mode: 'ai-error', message: 'The AI couldn’t find a food in this — try rephrasing.' };
+  } catch (e) {
+    ui = { mode: 'ai-error', message: (e && e.message) || 'AI lookup failed — offline, maybe.' };
+  }
+  // The entry may have changed while we waited (another item accepted, entry
+  // deleted, indexes shifted) — only attach the result if `key` still points
+  // at the same unresolved item we asked about.
+  if (itemByKey(key) !== item || item.ok) return;
+  resolverUI[key] = ui;
+  render();
+}
+
+function aiAccept(key) {
+  const ui = resolverUI[key];
+  if (!ui || ui.mode !== 'ai-results' || !ui.results.length) return;
+  const [entryId, idxS] = key.split(':');
+  const entry = today().entries.find((e) => e.id === entryId);
+  const idx = Number(idxS);
+  const source = entry && entry.items[idx];
+  if (!source) return;
+
+  const replacements = ui.results.map((r) => {
+    // Prefer a food the app already knows — but only on an EXACT name match.
+    // resolveFood's fuzzy rules would happily turn "almond milk" into plain
+    // "milk" and silently use the wrong numbers.
+    const nq = parser.normName(r.food_name_en);
+    let food = parser.resolveFood(r.food_name_en);
+    if (food) {
+      const nf = parser.normName(food.name);
+      if (nf !== nq && nf !== nq.replace(/(e?s)$/, '')) food = null;
+    }
+    if (!food) {
+      food = { name: r.food_name_en, per100: r.per100 };
+      if (r.piece_grams) food.piece = r.piece_grams;
+      if (nq) {
+        state.custom[nq] = food;
+        touch('custom', nq);
+        if (window.Sync) Sync.cachePut(nq, food);
+      }
+    }
+    const item = { raw: source.raw, name: r.food_name_en, mode: 'g', amount: r.grams };
+    parser.computeItem(item, food);
+    if (r.note) item.note = item.note ? `${item.note} · ${r.note}` : r.note;
+    return item;
+  });
+
+  entry.items.splice(idx, 1, ...replacements);
+  // Item indexes may have shifted — drop this entry's transient resolver state.
+  for (const k of Object.keys(resolverUI)) if (k.startsWith(entryId + ':')) delete resolverUI[k];
+  touch('day', dayKey());
+  save();
+  render();
 }
 
 async function offSearch(key, name) {
@@ -327,6 +431,8 @@ document.addEventListener('click', ev => {
   }
   if (a === 'reopen') { today().completed = false; touch('day', dayKey()); save(); render(); return; }
 
+  if (a === 'ai-lookup') { aiLookup(btn.dataset.key); return; }
+  if (a === 'ai-accept') { aiAccept(btn.dataset.key); return; }
   if (a === 'off-search') {
     const key = btn.dataset.key;
     const item = itemByKey(key);

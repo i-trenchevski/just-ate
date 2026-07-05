@@ -126,6 +126,13 @@ const Sync = (() => {
     notify();
   }
 
+  // Access token for calling edge functions as the signed-in user.
+  async function getToken() {
+    if (!client) return null;
+    const { data } = await client.auth.getSession();
+    return (data && data.session && data.session.access_token) || null;
+  }
+
   // GDPR erasure. The delete_account() RPC (see schema.sql) is security
   // definer: it deletes the auth.users row, and the on-delete-cascade FKs
   // take every personal row (targets, days, custom_foods) with it.
@@ -266,7 +273,7 @@ const Sync = (() => {
   }
 
   return {
-    init, signIn, signOut, deleteAccount, queuePush, syncNow, cacheGet, cachePut, mergeStates,
+    init, signIn, signOut, deleteAccount, getToken, queuePush, syncNow, cacheGet, cachePut, mergeStates,
     get user() { return user; },
     get status() { return status; },
     get lastSync() { return lastSync; },

@@ -68,5 +68,37 @@ check('custom food resolves after save', i.ok && i.kcal === 220, JSON.stringify(
 i = one('2 whey protein');
 check('count without piece weight -> 100 g each + note', i.ok && i.grams === 200 && !!i.note, JSON.stringify(i));
 
+// --- fraction words (half / pola / половина / 1/2) ---
+i = one('half banana');
+check('"half banana" -> 59 g', i.ok && i.foodName === 'banana' && i.grams === 59, JSON.stringify(i));
+
+i = one('pola banana');
+check('"pola banana" -> 59 g', i.ok && i.grams === 59, JSON.stringify(i));
+
+i = one('Половина banana');
+check('cyrillic "Половина banana" -> 59 g', i.ok && i.grams === 59, JSON.stringify(i));
+
+i = one('1/2 banana');
+check('"1/2 banana" -> 59 g', i.ok && i.grams === 59, JSON.stringify(i));
+
+i = one('half an egg');
+check('"half an egg" strips the article', i.ok && i.foodName === 'egg' && i.grams === 27.5, JSON.stringify(i));
+
+i = one('три јајца');
+check('unknown language stays unresolved (goes to AI)', !!i && i.ok === false, JSON.stringify(i));
+
+i = one('1/2 kg rice');
+check('"1/2 kg rice" scales the unit -> 500 g', i.ok && i.foodName === 'rice' && i.grams === 500, JSON.stringify(i));
+
+i = one('half l milk');
+check('"half l milk" -> 500 g', i.ok && i.foodName === 'milk' && i.grams === 500, JSON.stringify(i));
+
+custom[parser.normName('quarter pounder')] = { name: 'quarter pounder', per100: { kcal: 244, p: 13, c: 18, f: 13 }, piece: 202 };
+i = one('quarter pounder');
+check('taught food starting with a fraction word still resolves', i.ok && i.foodName === 'quarter pounder' && i.grams === 202, JSON.stringify(i));
+
+i = one('half banana');
+check('fraction still wins when the remainder resolves', i.ok && i.foodName === 'banana' && i.grams === 59, JSON.stringify(i));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

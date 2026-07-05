@@ -1,0 +1,4 @@
+project_id = "just-ate"
+
+[functions.parse-food]
+verify_jwt = true

@@ -157,6 +157,35 @@ and today's log appears on both.
   pick is saved to your own database, so it's looked up from the internet once,
   ever. This is the seed of "our own food DB".
 
+## 6. AI food lookups (~10 min, optional)
+
+Unknown foods can be identified by AI — any language, typos, colloquial
+portions ("pola banana"). The browser never sees the AI key: a Supabase
+Edge Function (`supabase/functions/parse-food`) holds it, requires a
+signed-in user, and caps each user at 50 lookups/day.
+
+1. **Anthropic API key**: console.anthropic.com → API keys → create. Set a
+   monthly spend limit there too (a few $ is plenty — a lookup costs ~$0.002
+   on Claude Haiku, and every resolved food is cached forever).
+2. **Supabase CLI**: `brew install supabase/tap/supabase`, then
+   `supabase login` (opens a browser).
+3. **Secrets** (per project — never commit this key):
+   ```bash
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref PROD-PROJECT-REF
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref DEV-PROJECT-REF
+   ```
+4. **Usage table**: run the `ai_usage` section of `schema.sql` in each
+   project's SQL Editor.
+5. **Deploy** (from the repo root):
+   ```bash
+   supabase functions deploy parse-food --project-ref PROD-PROJECT-REF
+   supabase functions deploy parse-food --project-ref DEV-PROJECT-REF
+   ```
+
+Signed-in users then get an "✨ Ask AI" option whenever a food isn't
+recognized. Accepted foods are saved to your foods and to the shared
+foods_cache, so each one costs money at most once, ever.
+
 ## If something misbehaves
 
 - **Google button does nothing / redirect error** → the URL in the error tells

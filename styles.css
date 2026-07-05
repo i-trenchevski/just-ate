@@ -139,6 +139,12 @@ input, select, textarea { font: inherit; }
   border-radius: 99px; padding: 6px 12px; font-size: 13px;
 }
 .chip:hover { border-color: var(--accent-deep); color: var(--accent-deep); }
+.chip.ai { border-color: var(--accent-deep); color: var(--accent-deep); background: var(--accent-dim); }
+.ai-item { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.ai-item:last-of-type { border-bottom: none; }
+.ai-item .nm { display: block; }
+.ai-item .g { color: var(--faint); }
+.ai-item .kc { display: block; color: var(--faint); font-size: 12px; }
 .off-result { display: block; width: 100%; text-align: left; padding: 8px; border-radius: 8px; }
 .off-result:hover { background: var(--surface-2); }
 .off-result .nm { display: block; }

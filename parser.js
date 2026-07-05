@@ -17,6 +17,14 @@ const WEIGHT_UNITS = {
 };
 const COUNT_UNITS = new Set(['x', 'pc', 'pcs', 'piece', 'pieces', 'kom', 'st', 'stuks']);
 
+// Leading fraction words: "half banana", "pola banana", "половина јаболко".
+const FRACTION_WORDS = {
+  'half': 0.5, '1/2': 0.5, 'pola': 0.5, 'polovina': 0.5, 'пола': 0.5, 'половина': 0.5,
+  'quarter': 0.25, '1/4': 0.25, 'третина': 1 / 3, 'third': 1 / 3,
+};
+const FRACTION_RE = new RegExp(
+  `^(${Object.keys(FRACTION_WORDS).map((w) => w.replace('/', '\\/')).join('|')})\\s+(?:an?\\s+)?(.+)$`, 'i');
+
 function normName(s) {
   return String(s)
     .toLowerCase()
@@ -92,6 +100,20 @@ function createParser(foods, getCustom) {
     let s = raw.trim().replace(/^(i\s+)?(ate|had)\s+/i, '');
     if (!s) return null;
 
+    const fm = s.match(FRACTION_RE);
+    if (fm) {
+      const frac = FRACTION_WORDS[fm[1].toLowerCase()];
+      const rest = fm[2].trim();
+      // "half kg rice" / "1/2 l milk": the fraction scales a weight unit
+      const um = rest.match(/^([a-zA-Z]+)\.?\s*(.*)$/);
+      if (um && WEIGHT_UNITS[um[1].toLowerCase()] != null && um[2]) {
+        return { raw, name: um[2].trim(), mode: 'g', amount: frac * WEIGHT_UNITS[um[1].toLowerCase()] };
+      }
+      // keep the unstripped text: a taught food may itself start with a
+      // fraction word ("quarter pounder")
+      return { raw, name: rest, mode: 'count', amount: frac, full: s };
+    }
+
     let m = s.match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/);
     if (m) {
       const amount = num(m[1]);
@@ -153,7 +175,15 @@ function createParser(foods, getCustom) {
     for (const chunk of chunks) {
       const item = parseItem(chunk);
       if (!item) continue;
-      computeItem(item, resolveFood(item.name));
+      let food = null;
+      if (item.full) {
+        // exact custom-food match on the whole phrase beats the fraction
+        // reading: "quarter pounder" is one taught food, not 0.25 pounders
+        const whole = customMap()[normName(item.full)];
+        if (whole) { item.name = item.full; item.mode = 'count'; item.amount = 1; food = whole; }
+      }
+      delete item.full;
+      computeItem(item, food || resolveFood(item.name));
       items.push(item);
     }
     return items;
