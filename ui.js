@@ -13,7 +13,7 @@ const UI = (() => {
   const esc = (s) => String(s).replace(/[&<>"']/g, (m) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 
-  function dialog({ title, message, buttons, input }) {
+  function dialog({ title, message, buttons, input, stack }) {
     return new Promise((resolve) => {
       const dlg = document.createElement('dialog');
       dlg.className = 'ui-dialog';
@@ -22,7 +22,7 @@ const UI = (() => {
           ${title ? `<h3 class="ui-title">${esc(title)}</h3>` : ''}
           <p class="ui-msg">${esc(message).replace(/\n/g, '<br>')}</p>
           ${input ? `<input class="ui-input" id="ui-input" placeholder="${esc(input.placeholder || '')}" autocomplete="off">` : ''}
-          <div class="ui-actions">
+          <div class="ui-actions${stack ? ' stack' : ''}">
             ${buttons.map((b, i) => `<button class="btn ${b.class || ''}" data-i="${i}">${esc(b.label)}</button>`).join('')}
           </div>
         </div>`;
@@ -89,6 +89,14 @@ const UI = (() => {
           { label: opts.cancelText || 'Cancel', value: null },
           { label: opts.okText || 'OK', value: '__input', class: opts.danger ? 'danger solid' : 'primary' },
         ],
+      });
+    },
+    menu(message, buttons, opts = {}) {
+      return dialog({
+        title: opts.title,
+        message,
+        stack: opts.stack,
+        buttons: [...buttons, { label: opts.cancelText || 'Cancel', value: null }],
       });
     },
     toast(message, opts = {}) {

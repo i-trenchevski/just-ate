@@ -1,6 +1,6 @@
 {
-  "name": "just-ate",
-  "short_name": "just-ate",
+  "name": "Just Ate",
+  "short_name": "Just Ate",
   "description": "Chat-style calorie and macro tracker",
   "start_url": "./",
   "scope": "./",

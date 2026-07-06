@@ -186,6 +186,8 @@ input, select, textarea { font: inherit; }
 .ui-input:focus { border-color: var(--accent); }
 .ui-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
 .ui-actions .btn { padding: 9px 16px; }
+.ui-actions.stack { flex-direction: column; align-items: stretch; }
+.ui-actions.stack .btn { width: 100%; text-align: center; }
 
 #ui-toasts {
   position: fixed; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom));
@@ -283,6 +285,7 @@ input, select, textarea { font: inherit; }
 .btn.danger.solid { background: var(--red); color: #ffffff; border-color: var(--red); font-weight: 600; }
 .btn.danger.solid:hover { background: #b91c1c; border-color: #b91c1c; }
 .btn-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.est-toggle { margin: 6px 0 2px; }
 .hint { font-size: 12px; color: var(--faint); margin-top: 8px; }
 
 /* ---------- log out + danger zone ---------- */

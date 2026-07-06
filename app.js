@@ -125,7 +125,19 @@ function acctChip() {
   const av = meta.avatar_url
     ? `<img src="${esc(meta.avatar_url)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`
     : ICONS.user;
-  return `<button class="acct-chip" data-action="nav" data-to="settings" title="${esc(u.email || '')}">${esc(first)} ${av}</button>`;
+  return `<button class="acct-chip" data-action="acct-menu" title="${esc(u.email || '')}">${esc(first)} ${av}</button>`;
+}
+
+// Opened from the account chip on any screen, so logging out is always reachable
+// — including the setup screen after a reset, where Settings isn't available yet.
+async function accountMenu() {
+  if (!(window.Sync && Sync.user)) return;
+  const buttons = [];
+  if (state.targets) buttons.push({ label: 'Settings', value: 'settings' });
+  buttons.push({ label: 'Log out', value: 'logout', class: 'danger' });
+  const choice = await UI.menu(Sync.user.email || 'Signed in', buttons, { title: 'Account', stack: true });
+  if (choice === 'settings') location.hash = 'settings';
+  else if (choice === 'logout') logOut();
 }
 
 // ---------------------------------------------------------------- main view
@@ -514,6 +526,7 @@ document.addEventListener('click', async ev => {
     touch('custom', btn.dataset.key);
     save(); render(); return;
   }
+  if (a === 'acct-menu') { accountMenu(); return; }
   if (a === 'google-login') { window.Sync && Sync.signIn(); return; }
   if (a === 'logout') { logOut(); return; }
   if (a === 'sync-now') { window.Sync && Sync.syncNow(); return; }
@@ -542,6 +555,14 @@ document.addEventListener('click', async ev => {
     }
     location.hash = ''; render();
     UI.toast('Everything wiped.');
+    return;
+  }
+  if (a === 'toggle-estimator') {
+    estimatorOpen = true;
+    const sec = document.getElementById('estimator');
+    const tog = document.getElementById('est-toggle');
+    if (tog) tog.style.display = 'none';
+    if (sec) { sec.style.display = ''; sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
     return;
   }
   if (a === 'estimate') { estimate(); return; }
@@ -636,6 +657,7 @@ function onLog(ev) {
 }
 
 // ---------------------------------------------------------------- setup / settings
+let estimatorOpen = false;   // the "Estimate my targets" calculator starts collapsed
 function renderTargetsForm(firstRun) {
   const t = state.targets || { kcal: '', p: '', c: '', f: '' };
   const pr = (state.targets && state.targets.profile) || {};
@@ -645,32 +667,9 @@ function renderTargetsForm(firstRun) {
         ${firstRun ? '<span></span>' : `<button class="back" data-action="nav" data-to="">← Back to today</button>`}
         <span id="acct-slot">${acctChip()}</span>
       </div>
-      ${firstRun ? '<div class="brand"><img src="icons/mark.svg" width="44" height="44" alt=""><span>just-ate</span></div>' : ''}
+      ${firstRun ? '<div class="brand"><img src="icons/mark.svg" width="44" height="44" alt=""><span>Just Ate</span></div>' : ''}
       <h1>${firstRun ? 'Set your day' : 'Settings'}</h1>
       <p class="lede">${firstRun ? 'Targets first — then it\u2019s just typing what you eat.' : 'Targets, your foods, your data.'}</p>
-
-      <h2>About you (only used for the estimate)</h2>
-      <div class="grid-2">
-        <div class="field"><label>Weight, kg</label><input inputmode="decimal" id="f-w" value="${pr.w ?? ''}"></div>
-        <div class="field"><label>Height, cm</label><input inputmode="decimal" id="f-h" value="${pr.h ?? ''}"></div>
-        <div class="field"><label>Age</label><input inputmode="numeric" id="f-age" value="${pr.age ?? ''}"></div>
-        <div class="field"><label>Activity</label>
-          <select id="f-act">
-            <option value="1.2" ${pr.act == 1.2 ? 'selected' : ''}>Mostly sitting</option>
-            <option value="1.375" ${(pr.act ?? 1.375) == 1.375 ? 'selected' : ''}>Lightly active</option>
-            <option value="1.55" ${pr.act == 1.55 ? 'selected' : ''}>Active</option>
-            <option value="1.725" ${pr.act == 1.725 ? 'selected' : ''}>Very active</option>
-          </select>
-        </div>
-      </div>
-      <div class="field"><label>Sex (for the formula)</label>
-        <div class="seg">
-          <button data-action="sex" data-v="f" class="${(pr.sex ?? 'f') === 'f' ? 'on' : ''}">Female</button>
-          <button data-action="sex" data-v="m" class="${pr.sex === 'm' ? 'on' : ''}">Male</button>
-        </div>
-      </div>
-      <button class="btn" data-action="estimate">Estimate my targets</button>
-      <p class="hint">Mifflin-St Jeor × activity — a maintenance estimate. Adjust below to match your goal.</p>
 
       <h2>Daily targets</h2>
       <div class="grid-4">
@@ -679,6 +678,34 @@ function renderTargetsForm(firstRun) {
         <div class="field"><label>Carbs g</label><input inputmode="numeric" id="t-c" value="${t.c}"></div>
         <div class="field"><label>Fat g</label><input inputmode="numeric" id="t-f" value="${t.f}"></div>
       </div>
+
+      <button class="btn est-toggle" data-action="toggle-estimator" id="est-toggle"${estimatorOpen ? ' style="display:none"' : ''}>Estimate my targets</button>
+
+      <div id="estimator"${estimatorOpen ? '' : ' style="display:none"'}>
+        <h2>About you (only used for the estimate)</h2>
+        <div class="grid-2">
+          <div class="field"><label>Weight, kg</label><input inputmode="decimal" id="f-w" value="${pr.w ?? ''}"></div>
+          <div class="field"><label>Height, cm</label><input inputmode="decimal" id="f-h" value="${pr.h ?? ''}"></div>
+          <div class="field"><label>Age</label><input inputmode="numeric" id="f-age" value="${pr.age ?? ''}"></div>
+          <div class="field"><label>Activity</label>
+            <select id="f-act">
+              <option value="1.2" ${pr.act == 1.2 ? 'selected' : ''}>Mostly sitting</option>
+              <option value="1.375" ${(pr.act ?? 1.375) == 1.375 ? 'selected' : ''}>Lightly active</option>
+              <option value="1.55" ${pr.act == 1.55 ? 'selected' : ''}>Active</option>
+              <option value="1.725" ${pr.act == 1.725 ? 'selected' : ''}>Very active</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Sex (for the formula)</label>
+          <div class="seg">
+            <button data-action="sex" data-v="f" class="${(pr.sex ?? 'f') === 'f' ? 'on' : ''}">Female</button>
+            <button data-action="sex" data-v="m" class="${pr.sex === 'm' ? 'on' : ''}">Male</button>
+          </div>
+        </div>
+        <div class="btn-row"><button class="btn" data-action="estimate">Calculate my targets</button></div>
+        <p class="hint">Mifflin-St Jeor × activity — a maintenance estimate. Adjust the targets above to match your goal.</p>
+      </div>
+
       <div class="btn-row"><button class="btn primary" data-action="save-targets">Save targets</button></div>
 
       ${firstRun ? '' : settingsExtras()}
