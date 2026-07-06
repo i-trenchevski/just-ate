@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <mask id="bite">
+    <mask id="bite" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
       <rect width="1024" height="1024" fill="white"></rect>
-      <g transform="translate(182 182) scale(6.875)">
-        <circle cx="87" cy="13" r="13" fill="black"></circle>
-        <circle cx="74" cy="13" r="5" fill="black"></circle>
-        <circle cx="77" cy="20.5" r="5" fill="black"></circle>
-        <circle cx="82.6" cy="25.2" r="5" fill="black"></circle>
-      </g>
+      <circle cx="780.1" cy="271.4" r="89.4" fill="black"></circle>
+      <circle cx="690.8" cy="271.4" r="34.4" fill="black"></circle>
+      <circle cx="711.4" cy="322.9" r="34.4" fill="black"></circle>
+      <circle cx="749.9" cy="355.3" r="34.4" fill="black"></circle>
     </mask>
   </defs>
   <rect width="1024" height="1024" rx="232" fill="#d97e4a"></rect>
-  <g mask="url(#bite)" fill="#faf5ef" transform="translate(182 182) scale(6.875)">
-    <rect x="8" y="12" width="80" height="58" rx="21"></rect>
-    <path d="M26 66 C26 78 20 85 13 89 C26 87 35 80 39 69 Z"></path>
+  <g mask="url(#bite)">
+    <g fill="#faf5ef" transform="translate(182 182) scale(6.875)">
+      <rect x="8" y="12" width="80" height="58" rx="21"></rect>
+      <path d="M26 66 C26 78 20 85 13 89 C26 87 35 80 39 69 Z"></path>
+    </g>
   </g>
 </svg>
