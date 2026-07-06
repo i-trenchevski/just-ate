@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Privacy · just-ate</title>
+  <meta name="description" content="What just-ate stores, where it lives, and how to delete it.">
+  <meta name="theme-color" content="#f4f7f4">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .doc { max-width: 660px; margin: 0 auto; padding: calc(22px + env(safe-area-inset-top)) 22px 64px; overflow-wrap: break-word; }
+    .doc img { max-width: 100%; }
+    .doc .brand { text-decoration: none; }
+    .doc h1 { font-family: var(--serif); font-weight: 600; font-size: 30px; margin: 6px 0 6px; color: var(--text); }
+    .doc .updated { color: var(--faint); font-size: 13px; margin: 0 0 24px; }
+    .doc h2 { font-size: 17px; font-weight: 600; color: var(--text); margin: 30px 0 8px; text-transform: none; letter-spacing: 0; }
+    .doc p, .doc li { color: var(--muted); font-size: 15px; line-height: 1.62; }
+    .doc ul { padding-left: 20px; margin: 8px 0; }
+    .doc li { margin: 4px 0; }
+    .doc strong { color: var(--text); font-weight: 600; }
+    .doc a { color: var(--accent-deep); }
+    .doc .tldr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin: 4px 0 8px; }
+    .doc .tldr p { margin: 0; }
+    .doc .back { display: inline-block; margin-top: 36px; color: var(--muted); font-size: 14px; }
+    .doc footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--faint); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="doc">
+    <a class="brand" href="/"><img src="icons/mark.svg" width="40" height="40" alt=""><span>just-ate</span></a>
+
+    <h1>Privacy policy</h1>
+    <p class="updated">Last updated 6 July 2026</p>
+
+    <div class="tldr">
+      <p><strong>The short version.</strong> just-ate stores your food log on your own device. If you sign in with Google, it also syncs to your private account so you can use it on more than one device. There are no ads, no analytics, and no tracking. You can export everything or delete your account and all of it, permanently, at any time from Settings.</p>
+    </div>
+
+    <h2>Who runs just-ate</h2>
+    <p>just-ate is an independent, personal project — a chat-style calorie and macro tracker. Questions about your data, or requests to see or delete it, go to <a href="mailto:ines@bankai.eu">ines@bankai.eu</a>.</p>
+
+    <h2>What the app stores</h2>
+    <p>Everything you put into just-ate is stored to make the app work — nothing is collected for any other purpose:</p>
+    <ul>
+      <li><strong>Your food log</strong> — the entries you type each day and the calories and macros computed from them.</li>
+      <li><strong>Your targets and profile</strong> — your daily kcal/protein/carb/fat goals, and the weight, height, age, sex and activity level you optionally enter so the app can estimate those targets.</li>
+      <li><strong>Custom foods</strong> — foods you teach the app, so it recognizes them next time.</li>
+    </ul>
+    <p>On its own, the app keeps all of this in your browser's local storage, on your device. It works fully offline and never leaves your device unless you sign in.</p>
+
+    <h2>When you sign in with Google</h2>
+    <p>Signing in is optional and only exists to back up your log and sync it across your devices. If you sign in:</p>
+    <ul>
+      <li>We receive your <strong>email address, name, and profile picture</strong> from Google — nothing else. We never receive your Google password or any other Google data.</li>
+      <li>Your food log, targets, profile and custom foods are synced to a private account in our database. Access is enforced per-account at the database level, so only you can read your own data.</li>
+    </ul>
+
+    <h2>AI food lookups</h2>
+    <p>When you log a food the app doesn't recognize and you're signed in, the <strong>text of that one food entry</strong> is sent to our server and on to <a href="https://www.anthropic.com/legal/privacy" rel="noopener">Anthropic</a> (the Claude AI service) to identify the food and estimate its nutrition. Only that food text is sent — not your name, not your account, and not the rest of your log. We keep a simple per-day count of these lookups to enforce a fair-use limit; that count contains no food text.</p>
+
+    <h2>Open Food Facts searches</h2>
+    <p>If you use the "Search Open Food Facts" option for an unknown food, the food name you're searching is sent to <a href="https://world.openfoodfacts.org/" rel="noopener">Open Food Facts</a>, an open nutrition database, to fetch results.</p>
+
+    <h2>Shared food cache</h2>
+    <p>To avoid looking the same food up over and over, resolved <strong>generic</strong> foods — a food's common name and its nutrition numbers — are saved to a shared lookup table. This holds generic nutrition data only; it does not contain your identity or your personal diary.</p>
+
+    <h2>Where your data lives</h2>
+    <p>We use a small number of service providers purely to run the app:</p>
+    <ul>
+      <li><strong>Supabase</strong> — database and sign-in, hosted in the European Union. (<a href="https://supabase.com/privacy" rel="noopener">privacy</a>)</li>
+      <li><strong>GitHub Pages</strong> — hosts the app's files. (<a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">privacy</a>)</li>
+      <li><strong>Anthropic</strong> — processes food text for AI lookups only. (<a href="https://www.anthropic.com/legal/privacy" rel="noopener">privacy</a>)</li>
+      <li><strong>Google</strong> — sign-in, if you choose it. (<a href="https://policies.google.com/privacy" rel="noopener">privacy</a>)</li>
+    </ul>
+    <p>Like any web service, these providers may log technical details such as IP addresses and request times as part of normal, secure operation.</p>
+
+    <h2>Cookies and tracking</h2>
+    <p>None. just-ate uses no advertising, no analytics, and no tracking cookies. It uses your browser's local storage only for the functional job of holding your log and, if you sign in, keeping you signed in.</p>
+
+    <h2>Your choices and rights</h2>
+    <ul>
+      <li><strong>Export</strong> your entire log as a file at any time (Settings → Export JSON).</li>
+      <li><strong>Delete your account</strong> and every piece of synced data, permanently, with no way back (Settings → Danger zone → Delete account).</li>
+      <li><strong>Wipe a device</strong> by resetting, or by logging out (which removes the local copy from that device).</li>
+    </ul>
+    <p>Because your synced data is processed in the EU, the GDPR applies: you have the right to access, correct, export, and erase your data, and to object to or restrict its processing. The controls above cover most of this directly; for anything else, email <a href="mailto:ines@bankai.eu">ines@bankai.eu</a>.</p>
+
+    <h2>How long we keep it</h2>
+    <p>Data on your device stays until you clear it. Synced data stays in your account until you delete it — deleting your account removes it immediately and permanently.</p>
+
+    <h2>Children</h2>
+    <p>just-ate is not directed at children under 16 and we do not knowingly collect their data.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If this policy changes, the "last updated" date above changes with it. Meaningful changes will be reflected here before they take effect.</p>
+
+    <h2>Contact</h2>
+    <p>Anything at all about your data: <a href="mailto:ines@bankai.eu">ines@bankai.eu</a>.</p>
+
+    <a class="back" href="/">← Back to just-ate</a>
+    <footer>just-ate · a personal project · just-ate.com</footer>
+  </div>
+</body>
+</html>

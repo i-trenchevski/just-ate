@@ -667,6 +667,7 @@ function renderTargetsForm(firstRun) {
       <div class="btn-row"><button class="btn primary" data-action="save-targets">Save targets</button></div>
 
       ${firstRun ? '' : settingsExtras()}
+      <p class="doc-link"><a href="privacy.html">Privacy policy</a></p>
     </div>`;
 }
 
