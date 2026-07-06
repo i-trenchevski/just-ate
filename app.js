@@ -455,7 +455,7 @@ function resolveWith(key, per100) {
 }
 
 // ---------------------------------------------------------------- actions
-document.addEventListener('click', ev => {
+document.addEventListener('click', async ev => {
   const btn = ev.target.closest('[data-action]');
   if (!btn) return;
   const a = btn.dataset.action;
@@ -463,18 +463,18 @@ document.addEventListener('click', ev => {
   if (a === 'nav') { location.hash = btn.dataset.to; return; }
 
   if (a === 'del-entry') {
-    const d = today();
-    const e = d.entries.find(x => x.id === btn.dataset.id);
-    if (e && confirm(`Delete “${e.text}”?`)) {
-      d.entries = d.entries.filter(x => x.id !== btn.dataset.id);
-      touch('day', dayKey());
-      save(); render();
+    const id = btn.dataset.id;
+    const dk = dayKey();                                    // pin the day now, not after the dialog (midnight, and a sync pull, can move it)
+    const e = (state.days[dk] || { entries: [] }).entries.find(x => x.id === id);
+    if (e && await UI.confirm(`Delete “${e.text}”?`, { danger: true, okText: 'Delete' })) {
+      const d = state.days[dk];                             // re-read: a sync pull may have swapped the object during the dialog
+      if (d) { d.entries = d.entries.filter(x => x.id !== id); touch('day', dk); save(); render(); }
     }
     return;
   }
 
   if (a === 'complete') {
-    if (confirm('Close this day and move it to history?')) { today().completed = true; touch('day', dayKey()); save(); render(); }
+    if (await UI.confirm('Close this day and move it to history?', { okText: 'Complete' })) { today().completed = true; touch('day', dayKey()); save(); render(); }
     return;
   }
   if (a === 'reopen') { today().completed = false; touch('day', dayKey()); save(); render(); return; }
@@ -504,7 +504,7 @@ document.addEventListener('click', ev => {
     const key = btn.dataset.key;
     const g = id => parseFloat((document.getElementById(`mf-${id}-${key}`) || {}).value?.replace(',', '.')) || 0;
     const per100 = { kcal: g('kcal'), p: g('p'), c: g('c'), f: g('f') };
-    if (per100.kcal <= 0) { alert('kcal per 100 g is needed.'); return; }
+    if (per100.kcal <= 0) { UI.toast('kcal per 100 g is needed.', { type: 'error' }); return; }
     resolveWith(key, per100);
     return;
   }
@@ -524,7 +524,7 @@ document.addEventListener('click', ev => {
   if (a === 'reset') {
     const cloud = window.Sync && Sync.user
       ? '\n\n(You are signed in — the cloud copy stays and will come back on next sync. To clear just this device, use Log out instead.)' : '';
-    if (confirm('Wipe everything — targets, custom foods, all history?' + cloud)) {
+    if (await UI.confirm('Wipe everything — targets, custom foods, all history?' + cloud, { danger: true, okText: 'Wipe everything', title: 'Reset everything' })) {
       localStorage.removeItem(LS_KEY); state = load(); location.hash = ''; render();
     }
     return;
@@ -564,7 +564,7 @@ async function logOut() {
     const msg = clean
       ? 'Log out and remove your log from this device? It stays in your account and comes back when you sign in again.'
       : 'Log out and remove your log from this device?\n\nWARNING: couldn’t confirm everything is backed up (sync failed) — recent changes may be lost. To be safe, cancel and tap “Sync now” once you’re back online.';
-    if (!confirm(msg)) return;
+    if (!await UI.confirm(msg, { danger: !clean, okText: 'Log out', title: 'Log out' })) return;
     await Sync.signOut();
     localStorage.removeItem(LS_KEY);
     state = load();
@@ -577,13 +577,14 @@ async function logOut() {
 async function deleteAccount() {
   if (!(window.Sync && Sync.user)) return;
   const email = Sync.user.email || 'your account';
-  if (!confirm(`Permanently delete ${email} and ALL synced data — every day, food and target, on every device?`)) return;
-  if (prompt('This cannot be undone. Type DELETE to confirm.') !== 'DELETE') return;
+  if (!await UI.confirm(`Permanently delete ${email} and ALL synced data — every day, food and target, on every device?`, { danger: true, okText: 'Continue', title: 'Delete account' })) return;
+  const typed = await UI.prompt('This cannot be undone. Type DELETE to confirm.', { placeholder: 'DELETE', okText: 'Delete forever', danger: true, title: 'Are you absolutely sure?' });
+  if (typed !== 'DELETE') return;
   const btn = document.querySelector('[data-action=delete-account]');
   if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
   const res = await Sync.deleteAccount();
   if (!res.ok) {
-    alert('Could not delete the account: ' + res.error);
+    await UI.alert('Could not delete the account: ' + res.error, { title: 'Deletion failed' });
     if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
     return;
   }
@@ -592,7 +593,7 @@ async function deleteAccount() {
   resolverUI = {};
   location.hash = '';
   render();
-  alert('Your account and all synced data were deleted.');
+  await UI.alert('Your account and all synced data were deleted.', { title: 'Account deleted' });
 }
 
 function onLog(ev) {
@@ -629,6 +630,7 @@ function renderTargetsForm(firstRun) {
         ${firstRun ? '<span></span>' : `<button class="back" data-action="nav" data-to="">← Back to today</button>`}
         <span id="acct-slot">${acctChip()}</span>
       </div>
+      ${firstRun ? '<div class="brand"><img src="icons/mark.svg" width="44" height="44" alt=""><span>just-ate</span></div>' : ''}
       <h1>${firstRun ? 'Set your day' : 'Settings'}</h1>
       <p class="lede">${firstRun ? 'Targets first — then it\u2019s just typing what you eat.' : 'Targets, your foods, your data.'}</p>
 
@@ -744,7 +746,7 @@ function estimate() {
   const act = parseFloat(document.getElementById('f-act').value);
   const sexBtn = document.querySelector('[data-action=sex].on');
   const sex = sexBtn ? sexBtn.dataset.v : 'f';
-  if (!(w > 0 && h > 0 && age > 0)) { alert('Weight, height and age are needed for the estimate.'); return; }
+  if (!(w > 0 && h > 0 && age > 0)) { UI.toast('Weight, height and age are needed for the estimate.', { type: 'error' }); return; }
   const bmr = 10 * w + 6.25 * h - 5 * age + (sex === 'm' ? 5 : -161);
   const kcal = Math.round((bmr * act) / 50) * 50;
   const p = Math.round(1.6 * w);
@@ -759,7 +761,7 @@ function estimate() {
 function saveTargets() {
   const v = id => parseFloat((document.getElementById(id) || {}).value?.replace(',', '.'));
   const kcal = v('t-kcal'), p = v('t-p'), c = v('t-c'), f = v('t-f');
-  if (!(kcal > 0 && p >= 0 && c >= 0 && f >= 0)) { alert('Set the four targets first (Estimate can fill them in).'); return; }
+  if (!(kcal > 0 && p >= 0 && c >= 0 && f >= 0)) { UI.toast('Set the four targets first (Estimate can fill them in).', { type: 'error' }); return; }
   const sexBtn = document.querySelector('[data-action=sex].on');
   state.targets = {
     kcal: Math.round(kcal), p: Math.round(p), c: Math.round(c), f: Math.round(f),
@@ -844,7 +846,7 @@ window.importJSON = function (ev) {
       for (const k of Object.keys(state.custom)) { state.custom[k].u = u; window.Sync && Sync.queuePush('custom', k); }
       if (state.targets && window.Sync) Sync.queuePush('targets');
       save(); location.hash = ''; render();
-    } catch (e) { alert('That file doesn\u2019t look like a just-ate export.'); }
+    } catch (e) { UI.toast('That file doesn\u2019t look like a just-ate export.', { type: 'error' }); }
   };
   reader.readAsText(file);
 };

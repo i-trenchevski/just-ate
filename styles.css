@@ -157,6 +157,50 @@ input, select, textarea { font: inherit; }
 @keyframes ai-dot-1 { 0% { opacity: 0; } 20%, 100% { opacity: 1; } }
 @keyframes ai-dot-2 { 0%, 33% { opacity: 0; } 53%, 100% { opacity: 1; } }
 @keyframes ai-dot-3 { 0%, 66% { opacity: 0; } 86%, 100% { opacity: 1; } }
+
+/* ---------- brand lockup (first-run) ---------- */
+.brand { display: flex; align-items: center; gap: 12px; margin: 4px 0 20px; }
+.brand img { width: 44px; height: 44px; display: block; }
+.brand span { font-family: var(--serif); font-weight: 600; font-size: 26px; color: var(--text); letter-spacing: -0.01em; }
+
+/* ---------- dialogs + toasts (custom alert/confirm/prompt) ---------- */
+.ui-dialog { border: none; background: transparent; padding: 0; max-width: 100vw; color: var(--text); }
+.ui-dialog::backdrop { background: rgba(20, 30, 24, 0.45); }
+.ui-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 20px; width: min(90vw, 360px);
+  box-shadow: 0 14px 44px rgba(31, 42, 35, 0.24);
+  animation: ui-pop .16s ease both;
+}
+@keyframes ui-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+.ui-title { font-family: var(--serif); font-weight: 600; font-size: 19px; margin: 0 0 8px; }
+.ui-msg { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 0; }
+.ui-input {
+  width: 100%; margin-top: 14px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; outline: none;
+}
+.ui-input:focus { border-color: var(--accent); }
+.ui-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+.ui-actions .btn { padding: 9px 16px; }
+
+#ui-toasts {
+  position: fixed; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 200; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  pointer-events: none;
+}
+.ui-toast {
+  background: var(--text); color: var(--bg); font-size: 13.5px;
+  padding: 10px 16px; border-radius: 99px; max-width: 90vw; text-align: center;
+  box-shadow: 0 6px 20px rgba(31, 42, 35, 0.25);
+  opacity: 0; transform: translateY(10px); transition: opacity .2s ease, transform .2s ease;
+}
+.ui-toast.in { opacity: 1; transform: none; }
+.ui-toast.error { background: var(--red); color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-card { animation: none; }
+  .ui-toast { transition: opacity .2s ease; transform: none; }
+}
 .off-result { display: block; width: 100%; text-align: left; padding: 8px; border-radius: 8px; }
 .off-result:hover { background: var(--surface-2); }
 .off-result .nm { display: block; }

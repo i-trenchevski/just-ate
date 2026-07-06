@@ -1,5 +1,5 @@
 // Bump this on every release. Old caches are deleted on activate.
-const SW_VERSION = 'just-ate-v8';
+const SW_VERSION = 'just-ate-v9';
 
 const CORE_ASSETS = [
   './',
@@ -10,7 +10,10 @@ const CORE_ASSETS = [
   './foods.js',
   './config.js',
   './sync.js',
+  './ui.js',
   './manifest.webmanifest',
+  './icons/icon.svg',
+  './icons/mark.svg',
 ];
 
 self.addEventListener('install', (e) => {
