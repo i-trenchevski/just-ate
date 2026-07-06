@@ -17,7 +17,9 @@ const Sync = (() => {
   let status = 'off';        // off | signedout | syncing | ok | error
   let lastSync = 0;
   let syncPromise = null;    // in-flight syncNow — callers join it, never race it
+  let flushPromise = null;   // in-flight debounced push — wipeData awaits it
   let authStorageKey = '';   // supabase's own localStorage key, for forced sign-out
+  let suspended = false;      // wipe in progress: block new sync, and no-op in-flight writes
   let pushTimer = null;
   const dirty = { targets: false, days: new Set(), custom: new Set() };
 
@@ -153,6 +155,40 @@ const Sync = (() => {
     return { ok: true };
   }
 
+  // Wipe this account's data (days, custom foods, targets) from the server AND
+  // this device, keeping the account and sign-in. Row-level security scopes
+  // every delete to the signed-in user; foods_cache is shared/generic and is
+  // left untouched. Sync is suspended across the whole critical section — no
+  // new pull/push can start, any in-flight one is awaited (and no-ops its write
+  // because `suspended` is set), the rows are deleted, then the local copy is
+  // cleared before sync resumes — so nothing resurrects or re-uploads the data.
+  async function wipeData() {
+    if (!client || !user) return { ok: false, error: 'Not signed in.' };
+    suspended = true;
+    clearTimeout(pushTimer);
+    dirty.targets = false; dirty.days.clear(); dirty.custom.clear();
+    try { await syncPromise; } catch (e) { /* in-flight pull settles; it skips its write */ }
+    try { await flushPromise; } catch (e) { /* in-flight push settles before we delete */ }
+    try {
+      const uid = user.id;
+      const results = await Promise.all([
+        client.from('days').delete().eq('user_id', uid),
+        client.from('custom_foods').delete().eq('user_id', uid),
+        client.from('targets').delete().eq('user_id', uid),
+      ]);
+      for (const r of results) if (r.error) throw r.error;
+    } catch (e) {
+      suspended = false;
+      status = 'error'; notify();
+      return { ok: false, error: (e && e.message) || 'Could not clear your cloud data.' };
+    }
+    hooks.replaceState({ targets: null, days: {}, custom: {} });  // clear the device while still suspended
+    lastSync = Date.now(); status = 'ok';
+    suspended = false;
+    notify();
+    return { ok: true };
+  }
+
   // ------------------------------------------------------------ push
   function queuePush(kind, key) {
     if (kind === 'targets') dirty.targets = true;
@@ -160,11 +196,11 @@ const Sync = (() => {
     else if (kind === 'custom') dirty.custom.add(key);
     if (!client || !user) return; // stays dirty; first sync after sign-in covers it
     clearTimeout(pushTimer);
-    pushTimer = setTimeout(flush, 1200);
+    pushTimer = setTimeout(() => { flushPromise = flush().finally(() => { flushPromise = null; }); }, 1200);
   }
 
   async function flush() {
-    if (!client || !user) return;
+    if (!client || !user || suspended) return;
     const s = hooks.getState();
     // Drop flags whose local object no longer exists (a reset wiped it) —
     // there is nothing to push, and a stuck flag would make `pending` lie.
@@ -211,7 +247,7 @@ const Sync = (() => {
   // is in flight joins it instead of racing it — awaiting syncNow() always
   // means "a full pull+merge+push attempt has finished".
   function syncNow() {
-    if (!client || !user) return Promise.resolve();
+    if (!client || !user || suspended) return Promise.resolve();
     if (!syncPromise) syncPromise = doSync().finally(() => { syncPromise = null; });
     return syncPromise;
   }
@@ -226,9 +262,9 @@ const Sync = (() => {
       ]);
       chk(t); chk(d); chk(c);
 
-      // Signed out or account deleted while the selects were in flight —
-      // writing the stale snapshot back would resurrect just-erased data.
-      if (!user) return;
+      // Signed out, account deleted, or a wipe started while the selects were
+      // in flight — writing the stale snapshot back would resurrect erased data.
+      if (!user || suspended) return;
 
       const remote = { targets: null, days: {}, custom: {} };
       if (t.data) remote.targets = { ...t.data.data, u: Number(t.data.u) || 0 };
@@ -273,7 +309,7 @@ const Sync = (() => {
   }
 
   return {
-    init, signIn, signOut, deleteAccount, getToken, queuePush, syncNow, cacheGet, cachePut, mergeStates,
+    init, signIn, signOut, deleteAccount, wipeData, getToken, queuePush, syncNow, cacheGet, cachePut, mergeStates,
     get user() { return user; },
     get status() { return status; },
     get lastSync() { return lastSync; },

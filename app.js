@@ -522,11 +522,26 @@ document.addEventListener('click', async ev => {
   if (a === 'export') { exportJSON(); return; }
   if (a === 'import') { document.getElementById('importfile').click(); return; }
   if (a === 'reset') {
-    const cloud = window.Sync && Sync.user
-      ? '\n\n(You are signed in — the cloud copy stays and will come back on next sync. To clear just this device, use Log out instead.)' : '';
-    if (await UI.confirm('Wipe everything — targets, custom foods, all history?' + cloud, { danger: true, okText: 'Wipe everything', title: 'Reset everything' })) {
-      localStorage.removeItem(LS_KEY); state = load(); location.hash = ''; render();
+    const signedIn = !!(window.Sync && Sync.user);
+    const msg = signedIn
+      ? 'Permanently delete all your days, foods and targets — from this device and your cloud account? Your account and sign-in stay, but the data is gone for good.'
+      : 'Wipe all targets, custom foods and history from this device? This can’t be undone.';
+    if (!await UI.confirm(msg, { danger: true, okText: 'Wipe everything', title: 'Reset everything' })) return;
+    if (signedIn) {
+      const btn = document.querySelector('[data-action=reset]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Wiping…'; }
+      const res = await Sync.wipeData();          // deletes the cloud rows AND clears this device on success
+      if (!res.ok) {
+        await UI.alert('Couldn’t fully clear your cloud data: ' + res.error + '\n\nSome may remain — try Reset again once you’re back online. Your device wasn’t touched.', { title: 'Reset failed' });
+        if (btn) { btn.disabled = false; btn.textContent = 'Reset'; }
+        return;
+      }
+      resolverUI = {};                            // wipeData already cleared local state + re-rendered
+    } else {
+      localStorage.removeItem(LS_KEY); state = load(); resolverUI = {};
     }
+    location.hash = ''; render();
+    UI.toast('Everything wiped.');
     return;
   }
   if (a === 'estimate') { estimate(); return; }
@@ -703,7 +718,9 @@ function settingsExtras() {
       <div class="dz-item">
         <div>
           <b>Reset everything</b>
-          <p class="hint">Wipes targets, foods and history from this device.${signedIn ? ' Your synced copy stays and comes back on the next sign-in.' : ''}</p>
+          <p class="hint">${signedIn
+            ? 'Permanently deletes all your days, foods and targets from this device and your cloud account. Your account and sign-in stay. Cannot be undone.'
+            : 'Wipes all targets, foods and history from this device. Cannot be undone.'}</p>
         </div>
         <button class="btn danger" data-action="reset">Reset</button>
       </div>
