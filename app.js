@@ -234,7 +234,7 @@ function resolverHTML(entryId, idx, item) {
       <button class="chip" data-action="manual" data-key="${key}">Add it myself</button>
     </div>${ai ? '' : `<div class="item-note" style="margin-top:6px">Sign in to identify foods with AI — any language, any phrasing.</div>`}`;
   } else if (ui.mode === 'ai-loading') {
-    body = `<span class="status">Asking AI…</span>`;
+    body = `<span class="status">Asking AI<span class="ai-dots"><i>.</i><i>.</i><i>.</i></span></span>`;
   } else if (ui.mode === 'ai-results') {
     const rows = ui.results.map((r) => `
       <div class="ai-item">

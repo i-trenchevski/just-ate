@@ -39,6 +39,12 @@ function num(s) { return parseFloat(String(s).replace(',', '.')); }
 
 function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
+// A connector word marks a compound phrase — "burek so sirenje", "toast with
+// butter". Partial alias matches on compounds pick one ingredient and silently
+// drop the rest, so those phrases stay unresolved (and go to the AI; accepting
+// its answer teaches the exact phrase, making every repeat free).
+const CONNECTORS = new Set(['with', 'so', 'со', 'sa', 'с', 's', 'con', 'mit', 'met', 'avec', 'i', 'и', 'y', 'e']);
+
 function singularVariants(q) {
   const v = [q];
   if (q.endsWith('ies')) v.push(q.slice(0, -3) + 'y');
@@ -77,6 +83,9 @@ function createParser(foods, getCustom) {
       if (custom[v]) return custom[v];           // your own foods win
       if (exact.has(v)) return exact.get(v);     // then built-ins, exactly
     }
+
+    // compound phrase → no fuzzy matching (see CONNECTORS above)
+    if (q.split(' ').some((w) => CONNECTORS.has(w))) return null;
 
     // whole-word alias contained in the query: "zlatiborac prshuta" -> prosciutto
     for (const key of Object.keys(custom)) {

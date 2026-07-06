@@ -97,7 +97,10 @@ input, select, textarea { font: inherit; }
 .chat-empty b { color: var(--muted); font-weight: 600; }
 
 .msg { align-self: flex-end; max-width: 88%; animation: rise .18s ease both; }
-@media (prefers-reduced-motion: reduce) { .msg, .bar i { animation: none; transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .msg, .bar i { animation: none; transition: none; }
+  .ai-dots i { animation: none; opacity: 1; }
+}
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
 
 .bubble {
@@ -145,6 +148,15 @@ input, select, textarea { font: inherit; }
 .ai-item .nm { display: block; }
 .ai-item .g { color: var(--faint); }
 .ai-item .kc { display: block; color: var(--faint); font-size: 12px; }
+
+/* . .. ... — the dots build up together, then the cycle restarts */
+.ai-dots i { font-style: normal; opacity: 0; animation: 1.2s ease-in-out infinite; }
+.ai-dots i:nth-child(1) { animation-name: ai-dot-1; }
+.ai-dots i:nth-child(2) { animation-name: ai-dot-2; }
+.ai-dots i:nth-child(3) { animation-name: ai-dot-3; }
+@keyframes ai-dot-1 { 0% { opacity: 0; } 20%, 100% { opacity: 1; } }
+@keyframes ai-dot-2 { 0%, 33% { opacity: 0; } 53%, 100% { opacity: 1; } }
+@keyframes ai-dot-3 { 0%, 66% { opacity: 0; } 86%, 100% { opacity: 1; } }
 .off-result { display: block; width: 100%; text-align: left; padding: 8px; border-radius: 8px; }
 .off-result:hover { background: var(--surface-2); }
 .off-result .nm { display: block; }

@@ -104,5 +104,15 @@ custom[parser.normName('бадемово млеко')] = { name: 'almond milk', 
 i = one('бадемово млеко');
 check('cyrillic phrase alias resolves once taught', i.ok && i.foodName === 'almond milk' && i.grams === 250, JSON.stringify(i));
 
+// --- an alias after a connector word is an ingredient, not the dish ---
+i = one('burek so sirenje');
+check('"burek so sirenje" is not feta (goes to AI)', !!i && i.ok === false, JSON.stringify(i));
+
+i = one('toast with butter');
+check('"toast with butter" is not butter (goes to AI)', !!i && i.ok === false, JSON.stringify(i));
+
+i = one('100g zlatiborac prshuta');
+check('brand + generic word still resolves (no connector)', i.ok && i.foodName === 'prosciutto', JSON.stringify(i));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
