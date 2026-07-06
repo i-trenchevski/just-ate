@@ -100,5 +100,9 @@ check('taught food starting with a fraction word still resolves', i.ok && i.food
 i = one('half banana');
 check('fraction still wins when the remainder resolves', i.ok && i.foodName === 'banana' && i.grams === 59, JSON.stringify(i));
 
+custom[parser.normName('бадемово млеко')] = { name: 'almond milk', per100: { kcal: 15, p: 0.5, c: 0.3, f: 1.1 }, piece: 250 };
+i = one('бадемово млеко');
+check('cyrillic phrase alias resolves once taught', i.ok && i.foodName === 'almond milk' && i.grams === 250, JSON.stringify(i));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

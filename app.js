@@ -157,6 +157,11 @@ function renderMain() {
        </form>
        <button class="complete" data-action="complete" ${d.entries.length ? '' : 'disabled'}>Complete the day</button>`;
 
+  // An async render (AI answer, sync pull) must not eat what's being typed.
+  const activeId = document.activeElement ? document.activeElement.id : '';
+  const drafts = {};
+  document.querySelectorAll('#app input').forEach((el) => { if (el.id && el.value) drafts[el.id] = el.value; });
+
   app.innerHTML = `
     <header class="plate">
       <div class="plate-card">
@@ -176,6 +181,15 @@ function renderMain() {
     </header>
     <main class="chat" id="chat">${chat}</main>
     <footer class="composer">${composer}</footer>`;
+
+  for (const id in drafts) {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.value = drafts[id];
+  }
+  if (activeId) {
+    const el = document.getElementById(activeId);
+    if (el) el.focus();
+  }
 
   const form = document.getElementById('logform');
   if (form) form.addEventListener('submit', onLog);
@@ -274,6 +288,18 @@ function resolverHTML(entryId, idx, item) {
 // ------------------------------------------------ AI food lookup
 // The edge function (supabase/functions/parse-food) holds the API key and
 // requires a signed-in user; the browser only ever sends the food text.
+
+// Redraw one resolver card in place. A full render() when the AI answers
+// would wipe whatever the user is typing into the composer by then.
+function patchResolver(key) {
+  const node = document.querySelector(`.resolver[data-rkey="${CSS.escape(key)}"]`);
+  if (!node) return;
+  const [entryId, idxS] = key.split(':');
+  const item = itemByKey(key);
+  if (!item) { node.remove(); return; }
+  node.outerHTML = resolverHTML(entryId, Number(idxS), item);
+}
+
 async function aiLookup(key) {
   const item = itemByKey(key);
   if (!item) return;
@@ -301,11 +327,17 @@ async function aiLookup(key) {
     ui = { mode: 'ai-error', message: (e && e.message) || 'AI lookup failed — offline, maybe.' };
   }
   // The entry may have changed while we waited (another item accepted, entry
-  // deleted, indexes shifted) — only attach the result if `key` still points
-  // at the same unresolved item we asked about.
-  if (itemByKey(key) !== item || item.ok) return;
+  // deleted, a sync pull replaced the objects) — attach the result only if
+  // `key` still points at the same unresolved text. Never strand the
+  // "Asking AI…" spinner: on a stale key, clear the state instead.
+  const current = itemByKey(key);
+  if (!current || current.ok || current.raw !== item.raw) {
+    delete resolverUI[key];
+    patchResolver(key);
+    return;
+  }
   resolverUI[key] = ui;
-  render();
+  patchResolver(key);
 }
 
 function aiAccept(key) {
@@ -317,6 +349,7 @@ function aiAccept(key) {
   const source = entry && entry.items[idx];
   if (!source) return;
 
+  const foods = [];
   const replacements = ui.results.map((r) => {
     // Prefer a food the app already knows — but only on an EXACT name match.
     // resolveFood's fuzzy rules would happily turn "almond milk" into plain
@@ -336,11 +369,26 @@ function aiAccept(key) {
         if (window.Sync) Sync.cachePut(nq, food);
       }
     }
+    foods.push(food);
     const item = { raw: source.raw, name: r.food_name_en, mode: 'g', amount: r.grams };
     parser.computeItem(item, food);
     if (r.note) item.note = item.note ? `${item.note} · ${r.note}` : r.note;
     return item;
   });
+
+  // Remember the exact phrase too (any script), so re-logging it is free —
+  // but only when the phrase names no amount ("бадемово млеко" yes;
+  // "три јајца" no: that one needs the AI's quantity reading every time).
+  if (ui.results.length === 1) {
+    const r = ui.results[0];
+    const phraseIsJustAName = source.mode === 'g' || source.amount !== 1 || !r.phrase_names_quantity;
+    const alias = parser.normName(source.name);
+    if (phraseIsJustAName && alias && !parser.resolveFood(alias)) {
+      if (!foods[0].piece && r.grams) foods[0].piece = r.grams; // AI's grams = typical portion
+      state.custom[alias] = foods[0];
+      touch('custom', alias);
+    }
+  }
 
   entry.items.splice(idx, 1, ...replacements);
   // Item indexes may have shifted — drop this entry's transient resolver state.
@@ -554,10 +602,19 @@ function onLog(ev) {
   if (!text) return;
   const items = parser.parseEntry(text);
   if (!items.length) return;
-  today().entries.push({ id: Math.random().toString(36).slice(2, 9), text, items, t: Date.now() });
+  input.value = '';   // consumed — render's draft preservation must not restore it
+  const id = Math.random().toString(36).slice(2, 9);
+  today().entries.push({ id, text, items, t: Date.now() });
   touch('day', dayKey());
   save();
   render();
+  // Just-typed unknown foods go straight to the AI — no click in between.
+  // Only for fresh entries (old unresolved items keep their Ask AI chip, so
+  // opening the app never spends lookups by itself), and only when the call
+  // can actually succeed: signed in + online.
+  if (window.Sync && Sync.user && navigator.onLine) {
+    items.forEach((it, idx) => { if (!it.ok) aiLookup(`${id}:${idx}`); });
+  }
   const fresh = document.getElementById('loginput');
   if (fresh) fresh.focus();
 }

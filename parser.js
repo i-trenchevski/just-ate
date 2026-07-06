@@ -30,7 +30,7 @@ function normName(s) {
     .toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip diacritics
     .replace(/\u0111/g, 'd')                            // dj has no NFD decomposition
-    .replace(/[^a-z0-9%\s-]/g, ' ')
+    .replace(/[^\p{L}\p{N}%\s-]/gu, ' ')                // keep letters in ANY script
     .replace(/\s+/g, ' ')
     .trim();
 }

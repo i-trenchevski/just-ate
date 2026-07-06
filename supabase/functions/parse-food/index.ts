@@ -45,8 +45,9 @@ const SCHEMA = {
           },
           confidence: { type: "string", enum: ["high", "medium", "low"] },
           note: { type: ["string", "null"] },
+          phrase_names_quantity: { type: "boolean" },
         },
-        required: ["food_name_en", "grams", "piece_grams", "per100", "confidence", "note"],
+        required: ["food_name_en", "grams", "piece_grams", "per100", "confidence", "note", "phrase_names_quantity"],
         additionalProperties: false,
       },
     },
@@ -70,6 +71,9 @@ Rules:
 - per100: typical kcal / protein g / carbs g / fat g per 100 g. For foods usually
   weighed before cooking (rice, pasta, oats, legumes, raw meat) give RAW values
   unless the text says cooked — and say which you assumed in note.
+- phrase_names_quantity: true if the user's text itself states an amount — a
+  number, fraction, or quantity word in any language ("100g rice", "три јајца",
+  "half banana"); false when it is only a food name ("ajvar", "бадемово млеко").
 - If the phrase contains several foods, return one item per food.
 - If the text is not food at all, return an empty items array.
 - Set confidence to "low" whenever the food identity or the amount is a real guess;

@@ -182,9 +182,13 @@ signed-in user, and caps each user at 50 lookups/day.
    supabase functions deploy parse-food --project-ref DEV-PROJECT-REF
    ```
 
-Signed-in users then get an "✨ Ask AI" option whenever a food isn't
-recognized. Accepted foods are saved to your foods and to the shared
-foods_cache, so each one costs money at most once, ever.
+When a just-typed food isn't recognized, signed-in users see the AI's
+answer immediately (older unresolved items keep an explicit "✨ Ask AI"
+chip so the app never spends lookups on its own). Accepted foods — and
+the exact phrase you typed, when it names no amount — are remembered
+locally and in the shared foods_cache, so repeats are free. Phrases that
+embed an amount in another language ("три јајца") are re-parsed by the
+AI each time: that quantity reading is exactly what the ~$0.002 buys.
 
 ## If something misbehaves
 
