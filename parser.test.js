@@ -114,5 +114,12 @@ check('"toast with butter" is not butter (goes to AI)', !!i && i.ok === false, J
 i = one('100g zlatiborac prshuta');
 check('brand + generic word still resolves (no connector)', i.ok && i.foodName === 'prosciutto', JSON.stringify(i));
 
+// --- a long described dish must NOT be plucked down to one food word ---
+i = one('meal salad chicken lemon thai style 400gr from jumbo supermarket in the netherlands');
+check('long dish description stays unresolved (goes to AI)', !!i && i.ok === false, JSON.stringify(i));
+
+i = one('grilled chicken breast');
+check('short brand/qualifier + food still resolves', i.ok && /chicken breast/.test(i.foodName), JSON.stringify(i));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

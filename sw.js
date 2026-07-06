@@ -1,5 +1,5 @@
 // Bump this on every release. Old caches are deleted on activate.
-const SW_VERSION = 'just-ate-v13';
+const SW_VERSION = 'just-ate-v14';
 
 const CORE_ASSETS = [
   './',

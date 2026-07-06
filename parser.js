@@ -87,6 +87,13 @@ function createParser(foods, getCustom) {
     // compound phrase → no fuzzy matching (see CONNECTORS above)
     if (q.split(' ').some((w) => CONNECTORS.has(w))) return null;
 
+    // A short phrase can be "brand + known food" (zlatiborac prshuta); a longer
+    // one is a described dish ("salad chicken lemon thai style 400gr from jumbo
+    // ...") where plucking one food word out is wrong. Leave it unresolved so
+    // the AI reads the whole thing. Exact name/alias matches above already
+    // handled known foods of any length.
+    if (q.split(' ').length > 4) return null;
+
     // whole-word alias contained in the query: "zlatiborac prshuta" -> prosciutto
     for (const key of Object.keys(custom)) {
       if (key.length >= 3 && new RegExp(`(^|\\s)${escapeRe(key)}(s|es)?($|\\s)`).test(q)) return custom[key];
